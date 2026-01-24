@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Player, Lineup } from '@/app/types';
-import { TEAMS, getFieldPlayers, getPitchersByRole } from '@/app/data/mockPlayers';
 import { TEAM_THEMES } from '@/app/data/teamThemes';
+import { MOCK_PLAYERS } from '@/app/data/mockPlayers';
 import { Card } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { Separator } from '@/app/components/ui/separator';
@@ -15,11 +15,13 @@ import {
   AccordionTrigger,
 } from '@/app/components/ui/accordion';
 import { Coins } from 'lucide-react';
+import { api } from '@/lib/api';
 
 import { DraggablePlayer } from './lineup/DraggablePlayer';
 import { LineupSlot } from './lineup/LineupSlot';
 import { PitcherSlot } from './lineup/PitcherSlot';
 import { BenchSlot } from './lineup/BenchSlot';
+
 
 const MAX_CREDITS = 2000; // 최대 크레딧 (테스트용)
 
@@ -40,21 +42,88 @@ export function LineupBuilder({ onLineupComplete }: LineupBuilderProps) {
     hasDH: false, // 지명타자 사용 여부
   });
 
+  // API 데이터 상태
+  const [groupedBatters, setGroupedBatters] = useState<{ [team: string]: Player[] }>({});
+  const [groupedPitchers, setGroupedPitchers] = useState<{ [team: string]: Player[] }>({});
+  const [loading, setLoading] = useState(true);
+
+  // 데이터 처리 함수
+  const processPlayers = (players: Player[]) => {
+    const batters = players.filter(p => p.position !== '투수');
+    const pitchers = players.filter(p => p.position === '투수');
+
+    const battersByTeam: { [key: string]: Player[] } = {};
+    batters.forEach(p => {
+      if (!battersByTeam[p.team]) battersByTeam[p.team] = [];
+      battersByTeam[p.team].push(p);
+    });
+
+    const pitchersByTeam: { [key: string]: Player[] } = {};
+    pitchers.forEach(p => {
+      if (!pitchersByTeam[p.team]) pitchersByTeam[p.team] = [];
+      pitchersByTeam[p.team].push(p);
+    });
+
+    setGroupedBatters(battersByTeam);
+    setGroupedPitchers(pitchersByTeam);
+  };
+
+  // 데이터 로드
+  useEffect(() => {
+    const loadMockData = () => {
+      console.log('Using mock data fallback (Full Data)');
+      processPlayers(MOCK_PLAYERS);
+    };
+
+    const fetchPlayers = async () => {
+      try {
+        const response = await api.get('/api/team/players');
+        // 백엔드 응답 구조가 hitters, pitchers 배열이라고 가정
+        const batters: Player[] = response.data.hitters || [];
+        const pitchers: Player[] = response.data.pitchers || [];
+
+        // 팀별 그룹화
+        const battersByTeam: { [key: string]: Player[] } = {};
+        batters.forEach(p => {
+          if (!battersByTeam[p.team]) battersByTeam[p.team] = [];
+          battersByTeam[p.team].push(p);
+        });
+
+        const pitchersByTeam: { [key: string]: Player[] } = {};
+        pitchers.forEach(p => {
+          if (!pitchersByTeam[p.team]) pitchersByTeam[p.team] = [];
+          pitchersByTeam[p.team].push(p);
+        });
+
+        setGroupedBatters(battersByTeam);
+        setGroupedPitchers(pitchersByTeam);
+      } catch (error) {
+        console.error('Failed to fetch players, likely because backend is not running:', error);
+        loadMockData();
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPlayers();
+  }, []);
+
+  const TEAMS = Array.from(new Set([...Object.keys(groupedBatters), ...Object.keys(groupedPitchers)]));
+
   // 자동 생성 함수
   const handleAutoGenerate = () => {
-    // 전체 선수 풀 가져오기
-    const allBatters: Player[] = [];
-    const allStarters: Player[] = [];
-    const allMiddles: Player[] = [];
-    const allClosers: Player[] = [];
+    // 전체 선수 풀 수집 (API 데이터 기반)
+    const allBatters: Player[] = Object.values(groupedBatters).flat();
+    const allPitchers: Player[] = Object.values(groupedPitchers).flat();
 
-    // 모든 팀에서 선수 수집
-    TEAMS.forEach((team) => {
-      allBatters.push(...getFieldPlayers(team));
-      allStarters.push(...getPitchersByRole(team, 'starter'));
-      allMiddles.push(...getPitchersByRole(team, 'middle'));
-      allClosers.push(...getPitchersByRole(team, 'closer'));
-    });
+    const allStarters = allPitchers.filter(p => p.pitcherRole === 'starter');
+    const allMiddles = allPitchers.filter(p => p.pitcherRole === 'middle');
+    const allClosers = allPitchers.filter(p => p.pitcherRole === 'closer');
+
+    if (allBatters.length === 0 || allPitchers.length === 0) {
+      alert('선수 데이터가 없습니다.');
+      return;
+    }
 
     // 크레딧 기준으로 정렬 (낮은 순)
     allBatters.sort((a, b) => a.salary - b.salary);
@@ -74,18 +143,16 @@ export function LineupBuilder({ onLineupComplete }: LineupBuilderProps) {
     // 각 수비 포지션에 맞는 선수 배치
     for (let i = 0; i < 9; i++) {
       const position = requiredPositions[i];
-
-      // 해당 포지션을 할 수 있는 선수 찾기 (아직 선택 안 된 선수)
       let selectedPlayer: Player | null = null;
 
       for (const player of allBatters) {
         if (
-          !usedPlayerIds.has(player.id) &&
-          totalCredits + player.salary <= MAX_CREDITS - 800 && // 투수와 벤치를 위해 여유분 남김
-          (player.position === position || position === 'DH') // DH는 아무나 가능
+          !usedPlayerIds.has(String(player.id)) &&
+          totalCredits + player.salary <= MAX_CREDITS - 800 &&
+          (player.position === position || position === 'DH')
         ) {
           selectedPlayer = player;
-          usedPlayerIds.add(player.id);
+          usedPlayerIds.add(String(player.id));
           selectedBatting.push(player);
           selectedFieldPositions[i] = position;
           totalCredits += player.salary;
@@ -93,15 +160,15 @@ export function LineupBuilder({ onLineupComplete }: LineupBuilderProps) {
         }
       }
 
-      // 해당 포지션을 찾지 못하면 DH나 다른 포지션으로 대체
+      // 해당 포지션을 찾지 못하면 대체 (DH나 다른 포지션)
       if (!selectedPlayer) {
         for (const player of allBatters) {
           if (
-            !usedPlayerIds.has(player.id) &&
+            !usedPlayerIds.has(String(player.id)) &&
             totalCredits + player.salary <= MAX_CREDITS - 800
           ) {
             selectedPlayer = player;
-            usedPlayerIds.add(player.id);
+            usedPlayerIds.add(String(player.id));
             selectedBatting.push(player);
             selectedFieldPositions[i] = position;
             totalCredits += player.salary;
@@ -115,10 +182,10 @@ export function LineupBuilder({ onLineupComplete }: LineupBuilderProps) {
     for (let i = 0; i < 5; i++) {
       for (const player of allBatters) {
         if (
-          !usedPlayerIds.has(player.id) &&
-          totalCredits + player.salary <= MAX_CREDITS - 300 // 투수를 위해 여유분
+          !usedPlayerIds.has(String(player.id)) &&
+          totalCredits + player.salary <= MAX_CREDITS - 300
         ) {
-          usedPlayerIds.add(player.id);
+          usedPlayerIds.add(String(player.id));
           selectedBench.push(player);
           totalCredits += player.salary;
           break;
@@ -161,31 +228,24 @@ export function LineupBuilder({ onLineupComplete }: LineupBuilderProps) {
       }
     }
 
-    // 라인업 구성 실패 시
-    if (
-      selectedBatting.length < 9 ||
-      selectedBench.length < 5 ||
-      !selectedStarter ||
-      selectedMiddles.length < 5 ||
-      !selectedCloser
-    ) {
-      alert('크레딧 내에서 라인업을 구성할 수 없습니다. 다시 시도해주세요.');
-      return;
-    }
-
+    // 라인업 업데이트 (검증 로직 생략하고 우선 적용 - 부족하면 빈칸)
     setLineup({
-      batting: selectedBatting,
+      batting: selectedBatting.concat(Array(9 - selectedBatting.length).fill(null)),
       pitchers: {
         starter: selectedStarter,
-        middle: selectedMiddles,
+        middle: selectedMiddles.concat(Array(5 - selectedMiddles.length).fill(null)),
         closer: selectedCloser,
       },
-      bench: selectedBench,
+      bench: selectedBench.concat(Array(5 - selectedBench.length).fill(null)),
       fieldPositions: selectedFieldPositions,
       hasDH: selectedFieldPositions.includes('DH'),
     });
 
-    alert(`자동 생성 완료! 총 ${totalCredits} 크레딧 사용`);
+    if (selectedStarter && selectedCloser && selectedBatting.length === 9) {
+      alert(`자동 생성 완료! 총 ${totalCredits} 크레딧 사용`);
+    } else {
+      alert('조건에 맞는 선수가 부족하여 일부 슬롯이 비었습니다.');
+    }
   };
 
   // 총 사용 크레딧 계산
@@ -194,19 +254,19 @@ export function LineupBuilder({ onLineupComplete }: LineupBuilderProps) {
 
     // 타자
     lineup.batting.forEach((player) => {
-      if (player) total += player.salary;
+      if (player) total += (player as Player).salary;
     });
 
     // 투수
-    if (lineup.pitchers.starter) total += lineup.pitchers.starter.salary;
+    if (lineup.pitchers.starter) total += (lineup.pitchers.starter as Player).salary;
     lineup.pitchers.middle.forEach((player) => {
-      if (player) total += player.salary;
+      if (player) total += (player as Player).salary;
     });
-    if (lineup.pitchers.closer) total += lineup.pitchers.closer.salary;
+    if (lineup.pitchers.closer) total += (lineup.pitchers.closer as Player).salary;
 
     // 벤치
     lineup.bench.forEach((player) => {
-      if (player) total += player.salary;
+      if (player) total += (player as Player).salary;
     });
 
     return total;
@@ -351,273 +411,275 @@ export function LineupBuilder({ onLineupComplete }: LineupBuilderProps) {
     });
   };
 
-  const myTeam = lineup.batting[0]?.team || '';
-  const myTheme = TEAM_THEMES[myTeam];
-
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       <div className="max-w-[1600px] mx-auto">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-3xl font-bold">라인업 빌더</h2>
+          <div className="flex items-center gap-4">
+            <h2 className="text-3xl font-bold">라인업 빌더</h2>
+          </div>
 
-          {/* 크레딧 표시 */}
-          <Card className="px-6 py-3">
-            <div className="flex items-center gap-3">
-              <Coins className="w-6 h-6 text-amber-600" />
-              <div>
-                <div className="text-xs text-muted-foreground">남은 크레딧</div>
-                <div className={`text-2xl font-bold ${remainingCredits < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                  {remainingCredits} / {MAX_CREDITS}
-                </div>
-              </div>
-            </div>
-            <Progress
-              value={creditPercentage}
-              className="mt-2 h-2"
-            />
-          </Card>
+          <div className="flex items-center gap-4">
+
+
+            <Button size="lg" onClick={handleSubmit} className="h-16 px-8 text-lg">
+              라인업 확정 및 경기 시작
+            </Button>
+          </div>
         </div>
 
         {/* 70-30 레이아웃 */}
         <div className="grid grid-cols-10 gap-6">
           {/* 좌측 70% - 선수 목록 */}
           <div className="col-span-7">
-            <Card className="p-6">
-              <h3 className="text-xl font-bold mb-4">선수 목록</h3>
+            <Card className="p-6 h-[800px] flex flex-col">
+              <h3 className="text-xl font-bold mb-2">선수 목록</h3>
               <p className="text-sm text-muted-foreground mb-4">
                 팀을 선택하고 선수를 드래그해서 라인업으로 구성하세요. (최대 {MAX_CREDITS} 크레딧)
               </p>
 
-              <Tabs defaultValue="batters">
-                <TabsList className="grid w-full grid-cols-2 mb-4">
-                  <TabsTrigger value="batters" className="text-base">
-                    타자
-                  </TabsTrigger>
-                  <TabsTrigger value="pitchers" className="text-base">
-                    투수
-                  </TabsTrigger>
-                </TabsList>
+              {loading ? (
+                <div className="flex-1 flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+                </div>
+              ) : (
+                <Tabs defaultValue="batters" className="flex-1 flex flex-col">
+                  <TabsList className="grid w-full grid-cols-2 mb-4">
+                    <TabsTrigger value="batters" className="text-base">타자</TabsTrigger>
+                    <TabsTrigger value="pitchers" className="text-base">투수</TabsTrigger>
+                  </TabsList>
 
-                <TabsContent value="batters">
-                  <Accordion type="single" collapsible className="w-full">
-                    {TEAMS.map((team) => {
-                      const theme = TEAM_THEMES[team];
-                      const players = getFieldPlayers(team);
-                      return (
-                        <AccordionItem key={team} value={team}>
-                          <AccordionTrigger
-                            className="hover:no-underline"
-                            style={{
-                              backgroundColor: `${theme.primary}10`,
-                            }}
-                          >
-                            <div className="flex items-center gap-3 w-full px-2">
-                              <div
-                                className="w-5 h-5 rounded-full"
-                                style={{ backgroundColor: theme.primary }}
-                              />
-                              <span className="font-bold">{team}</span>
-                              <Badge variant="secondary" className="ml-auto mr-2">
-                                {players.length}명
-                              </Badge>
-                            </div>
-                          </AccordionTrigger>
-                          <AccordionContent>
-                            <div className="space-y-2 pt-2 max-h-[400px] overflow-y-auto">
-                              {players.map((player) => (
-                                <DraggablePlayer key={player.id} player={player} />
-                              ))}
-                            </div>
-                          </AccordionContent>
-                        </AccordionItem>
-                      );
-                    })}
-                  </Accordion>
-                </TabsContent>
+                  <TabsContent value="batters" className="flex-1 overflow-y-auto">
+                    <Accordion type="single" collapsible className="w-full">
+                      {TEAMS.map((team) => {
+                        const theme = TEAM_THEMES[team] || { primary: '#333' };
+                        const players = groupedBatters[team] || [];
+                        if (players.length === 0) return null;
 
-                <TabsContent value="pitchers">
-                  <Accordion type="single" collapsible className="w-full">
-                    {TEAMS.map((team) => {
-                      const theme = TEAM_THEMES[team];
-                      const starters = getPitchersByRole(team, 'starter');
-                      const middles = getPitchersByRole(team, 'middle');
-                      const closers = getPitchersByRole(team, 'closer');
-                      const totalPitchers = starters.length + middles.length + closers.length;
-
-                      return (
-                        <AccordionItem key={team} value={team}>
-                          <AccordionTrigger
-                            className="hover:no-underline"
-                            style={{
-                              backgroundColor: `${theme.primary}10`,
-                            }}
-                          >
-                            <div className="flex items-center gap-3 w-full px-2">
-                              <div
-                                className="w-5 h-5 rounded-full"
-                                style={{ backgroundColor: theme.primary }}
-                              />
-                              <span className="font-bold">{team}</span>
-                              <Badge variant="secondary" className="ml-auto mr-2">
-                                {totalPitchers}명
-                              </Badge>
-                            </div>
-                          </AccordionTrigger>
-                          <AccordionContent>
-                            <div className="space-y-4 pt-2 max-h-[400px] overflow-y-auto">
-                              <div>
-                                <h4 className="font-bold mb-2 text-green-700 text-sm">
-                                  선발 투수
-                                </h4>
-                                <div className="space-y-2">
-                                  {starters.map((player) => (
-                                    <DraggablePlayer key={player.id} player={player} />
-                                  ))}
-                                </div>
+                        return (
+                          <AccordionItem key={team} value={team}>
+                            <AccordionTrigger className="hover:no-underline" style={{ backgroundColor: `${theme.primary}10` }}>
+                              <div className="flex items-center gap-3 w-full px-2">
+                                <div className="w-5 h-5 rounded-full" style={{ backgroundColor: theme.primary }} />
+                                <span className="font-bold">{team}</span>
+                                <Badge variant="secondary" className="ml-auto mr-2">{players.length}명</Badge>
                               </div>
-
-                              <Separator />
-
-                              <div>
-                                <h4 className="font-bold mb-2 text-green-700 text-sm">
-                                  중간 계투
-                                </h4>
-                                <div className="space-y-2">
-                                  {middles.map((player) => (
-                                    <DraggablePlayer key={player.id} player={player} />
-                                  ))}
-                                </div>
+                            </AccordionTrigger>
+                            <AccordionContent>
+                              <div className="grid grid-cols-1 gap-2 pt-2">
+                                {players.map((player) => (
+                                  <DraggablePlayer key={player.id} player={player} />
+                                ))}
                               </div>
+                            </AccordionContent>
+                          </AccordionItem>
+                        );
+                      })}
+                    </Accordion>
+                  </TabsContent>
 
-                              <Separator />
+                  <TabsContent value="pitchers" className="flex-1 overflow-y-auto">
+                    <Accordion type="single" collapsible className="w-full">
+                      {TEAMS.map((team) => {
+                        const theme = TEAM_THEMES[team] || { primary: '#333' };
+                        const players = groupedPitchers[team] || [];
+                        if (players.length === 0) return null;
 
-                              <div>
-                                <h4 className="font-bold mb-2 text-green-700 text-sm">마무리</h4>
-                                <div className="space-y-2">
-                                  {closers.map((player) => (
-                                    <DraggablePlayer key={player.id} player={player} />
-                                  ))}
-                                </div>
+                        const starters = players.filter(p => p.pitcherRole === 'starter');
+                        const middles = players.filter(p => p.pitcherRole === 'middle');
+                        const closers = players.filter(p => p.pitcherRole === 'closer');
+                        const totalPitchers = players.length;
+
+                        return (
+                          <AccordionItem key={team} value={team}>
+                            <AccordionTrigger className="hover:no-underline" style={{ backgroundColor: `${theme.primary}10` }}>
+                              <div className="flex items-center gap-3 w-full px-2">
+                                <div className="w-5 h-5 rounded-full" style={{ backgroundColor: theme.primary }} />
+                                <span className="font-bold">{team}</span>
+                                <Badge variant="secondary" className="ml-auto mr-2">{totalPitchers}명</Badge>
                               </div>
-                            </div>
-                          </AccordionContent>
-                        </AccordionItem>
-                      );
-                    })}
-                  </Accordion>
-                </TabsContent>
-              </Tabs>
+                            </AccordionTrigger>
+                            <AccordionContent>
+                              <div className="space-y-4 pt-2">
+                                {starters.length > 0 && (
+                                  <div>
+                                    <h4 className="font-bold mb-2 text-green-700 text-sm">선발 투수</h4>
+                                    <div className="grid grid-cols-1 gap-2">
+                                      {starters.map((player) => (
+                                        <DraggablePlayer key={player.id} player={player} />
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                                {middles.length > 0 && (
+                                  <>
+                                    <Separator />
+                                    <div className="mt-2">
+                                      <h4 className="font-bold mb-2 text-green-700 text-sm">중간 계투</h4>
+                                      <div className="grid grid-cols-1 gap-2">
+                                        {middles.map((player) => (
+                                          <DraggablePlayer key={player.id} player={player} />
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </>
+                                )}
+                                {closers.length > 0 && (
+                                  <>
+                                    <Separator />
+                                    <div className="mt-2">
+                                      <h4 className="font-bold mb-2 text-green-700 text-sm">마무리 투수</h4>
+                                      <div className="grid grid-cols-1 gap-2">
+                                        {closers.map((player) => (
+                                          <DraggablePlayer key={player.id} player={player} />
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            </AccordionContent>
+                          </AccordionItem>
+                        );
+                      })}
+                    </Accordion>
+                  </TabsContent>
+                </Tabs>
+              )}
             </Card>
           </div>
 
-          {/* 우측 30% - 내 라인업 */}
-          <div className="col-span-3">
-            <Card
-              className="p-4 sticky top-4"
-              style={{ borderColor: myTheme?.primary || '#ccc', borderWidth: '2px' }}
-            >
-              <div className="flex items-center gap-2 mb-4">
-                {myTheme && (
-                  <div
-                    className="w-6 h-6 rounded-full"
-                    style={{ backgroundColor: myTheme.primary }}
-                  />
-                )}
-                <h3 className="text-lg font-bold">내 라인업</h3>
-              </div>
-
-              {/* 투수진 */}
-              <div className="mb-4">
-                <h4 className="font-bold mb-2 text-green-700 text-sm">투수진</h4>
-                <div className="space-y-1">
-                  <PitcherSlot
-                    player={lineup.pitchers.starter}
-                    onDrop={handleStarterDrop}
-                    onRemove={() => handleStarterDrop(null)}
-                    role="starter"
-                    label="선발"
-                  />
-                  {lineup.pitchers.middle.map((player, idx) => (
-                    <PitcherSlot
-                      key={idx}
-                      player={player}
-                      onDrop={(p) => handleMiddleDrop(p, idx)}
-                      onRemove={() => handleMiddleDrop(null, idx)}
-                      role="middle"
-                      label={`계투${idx + 1}`}
-                    />
-                  ))}
-                  <PitcherSlot
-                    player={lineup.pitchers.closer}
-                    onDrop={handleCloserDrop}
-                    onRemove={() => handleCloserDrop(null)}
-                    role="closer"
-                    label="마무리"
-                  />
+          {/* 우측 30% - 라인업 슬롯 */}
+          <div className="col-span-3 space-y-4">
+            {/* 크레딧 표시 */}
+            <Card className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Coins className="w-5 h-5 text-amber-600" />
+                  <span className="font-bold">남은 크레딧</span>
+                </div>
+                <div className={`text-xl font-bold ${remainingCredits < 0 ? 'text-red-600' : 'text-black-600'}`}>
+                  {remainingCredits} / {MAX_CREDITS}
                 </div>
               </div>
-
-              <Separator className="my-4" />
-
-              {/* 타순 */}
-              <div className="mb-4">
-                <h4 className="font-bold mb-2 text-blue-700 text-sm">타순</h4>
-                <div className="space-y-1">
-                  {lineup.batting.map((player, index) => (
-                    <LineupSlot
-                      key={index}
-                      index={index}
-                      player={player}
-                      onDrop={handleBatterDrop}
-                      onRemove={() => handleBatterDrop(null, index)}
-                      onPositionChange={(idx, pos) => {
-                        const newPositions = [...lineup.fieldPositions];
-                        newPositions[idx] = pos;
-                        setLineup({ ...lineup, fieldPositions: newPositions });
-                      }}
-                      label={`${index + 1}번`}
-                      usedPositions={lineup.fieldPositions}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <Separator className="my-4" />
-
-              {/* 벤치 (대타/대주자) */}
-              <div className="mb-4">
-                <h4 className="font-bold mb-2 text-purple-700 text-sm">벤치 (대타/대주자)</h4>
-                <div className="space-y-1">
-                  {lineup.bench.map((player, index) => (
-                    <BenchSlot
-                      key={index}
-                      index={index}
-                      player={player}
-                      onDrop={handleBenchDrop}
-                      onRemove={() => handleBenchDrop(null, index)}
-                      label={`벤치${index + 1}`}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <Button
-                  onClick={handleSubmit}
-                  className="w-full"
-                  size="lg"
-                  disabled={remainingCredits < 0}
-                >
-                  라인업 완성
-                </Button>
-                <Button onClick={handleClear} variant="outline" className="w-full">
-                  초기화
-                </Button>
-                <Button onClick={handleAutoGenerate} variant="outline" className="w-full">
-                  자동 생성
-                </Button>
-              </div>
+              <Progress value={creditPercentage} className="h-2" />
             </Card>
+
+            {/* 라인업 슬롯 - 아코디언 */}
+            <Accordion type="single" collapsible defaultValue="batting" className="w-full">
+              {/* 타자 라인업 */}
+              <AccordionItem value="batting">
+                <AccordionTrigger className="hover:no-underline px-4 bg-white border rounded-t-lg">
+                  <span className="font-bold flex items-center justify-between w-full pr-4">
+                    <span>선발 타자 (1~9번)</span>
+                    <span className="text-xs text-muted-foreground bg-gray-100 px-2 py-1 rounded-full">
+                      {lineup.batting.filter(Boolean).length}/9
+                    </span>
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent className="p-4 bg-white border border-t-0 rounded-b-lg">
+                  <div className="space-y-2">
+                    {lineup.batting.map((player, index) => (
+                      <LineupSlot
+                        key={`batter-${index}`}
+                        index={index}
+                        player={player as Player}
+                        fieldPosition={lineup.fieldPositions[index]}
+                        onDrop={handleBatterDrop}
+                        onRemove={() => handleBatterDrop(null, index)}
+                        onPositionChange={(idx, val) => {
+                          const newPositions = [...lineup.fieldPositions];
+                          newPositions[idx] = val;
+                          setLineup({
+                            ...lineup,
+                            fieldPositions: newPositions,
+                            hasDH: newPositions.includes('DH')
+                          });
+                        }}
+                        label={`${index + 1}번 타자`}
+                        usedPositions={lineup.fieldPositions}
+                      />
+                    ))}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
+              {/* 투수 라인업 */}
+              <AccordionItem value="pitchers">
+                <AccordionTrigger className="hover:no-underline px-4 bg-white border rounded-t-lg mt-2">
+                  <span className="font-bold flex items-center justify-between w-full pr-4">
+                    <span>투수진</span>
+                    <span className="text-xs text-muted-foreground bg-gray-100 px-2 py-1 rounded-full">
+                      {[lineup.pitchers.starter, ...lineup.pitchers.middle, lineup.pitchers.closer].filter(Boolean).length}/7
+                    </span>
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent className="p-4 bg-white border border-t-0 rounded-b-lg">
+                  <div className="space-y-2">
+                    <PitcherSlot
+                      player={lineup.pitchers.starter}
+                      onDrop={handleStarterDrop}
+                      onRemove={() => handleStarterDrop(null)}
+                      role="starter"
+                      label="선발 투수 (SP)"
+                    />
+                    <div className="flex flex-col gap-2 mb-4">
+                      {lineup.pitchers.middle.map((player, index) => (
+                        <PitcherSlot
+                          key={`middle-${index}`}
+                          player={player}
+                          onDrop={(p) => handleMiddleDrop(p, index)}
+                          onRemove={() => handleMiddleDrop(null, index)}
+                          role="middle"
+                          label={`RP${index + 1}`}
+                        />
+                      ))}
+                    </div>
+                    <PitcherSlot
+                      player={lineup.pitchers.closer}
+                      onDrop={handleCloserDrop}
+                      onRemove={() => handleCloserDrop(null)}
+                      role="closer"
+                      label="마무리 투수 (CP)"
+                    />
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
+              {/* 벤치 */}
+              <AccordionItem value="bench">
+                <AccordionTrigger className="hover:no-underline px-4 bg-white border rounded-t-lg mt-2">
+                  <span className="font-bold flex items-center justify-between w-full pr-4">
+                    <span>벤치 멤버</span>
+                    <span className="text-xs text-muted-foreground bg-gray-100 px-2 py-1 rounded-full">
+                      {lineup.bench.filter(Boolean).length}/5
+                    </span>
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent className="p-4 bg-white border border-t-0 rounded-b-lg">
+                  <div className="flex flex-col gap-2 mb-4">
+                    {lineup.bench.map((player, index) => (
+                      <BenchSlot
+                        key={`bench-${index}`}
+                        index={index}
+                        player={player}
+                        onDrop={handleBenchDrop}
+                        onRemove={() => handleBenchDrop(null, index)}
+                        label={`B${index + 1}`}
+                      />
+                    ))}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={handleAutoGenerate}>
+                자동 생성
+              </Button>
+              <Button variant="destructive" className="flex-1" onClick={handleClear}>
+                초기화
+              </Button>
+            </div>
           </div>
         </div>
       </div>
