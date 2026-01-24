@@ -4,6 +4,7 @@ import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/components/ui/tabs';
 import { Users, Copy, Shuffle, ArrowRight } from 'lucide-react';
+import { api } from "@/lib/api";
 
 interface GameLobbyProps {
   onCreateGame: (mode: 'friend' | 'invite' | 'random') => void;
@@ -15,10 +16,21 @@ export function GameLobby({ onCreateGame, onJoinGame }: GameLobbyProps) {
   const [generatedCode, setGeneratedCode] = useState('');
   const [playerName, setPlayerName] = useState('');
 
-  const handleCreateWithCode = () => {
-    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-    setGeneratedCode(code);
-    onCreateGame('invite');
+  // 초대 코드 생성 /api/rooms POST
+  const handleCreateWithCode = async () => {
+    try {
+      // TODO: 백엔드 연결 시 주석 해제
+      // const response = await api.post('/api/rooms', { user_id: 1 });
+      // setGeneratedCode(response.data.match_id);
+
+      // Mock Data for UI Testing
+      const mockMatchId = Math.random().toString(36).substring(2, 8).toUpperCase();
+      await new Promise(resolve => setTimeout(resolve, 500)); // 0.5초 딜레이 시뮬레이션
+      setGeneratedCode(mockMatchId);
+    } catch (error) {
+      console.error('Failed to create room:', error);
+      alert('방 생성에 실패했습니다.');
+    }
   };
 
   const handleCopyCode = () => {
@@ -210,7 +222,7 @@ export function GameLobby({ onCreateGame, onJoinGame }: GameLobbyProps) {
 
         {/* 하단 정보 */}
         <div className="mt-6 text-center text-blue-100 text-sm">
-          <p>💡 팁: 크레딧을 효율적으로 사용해서 최강의 라인업을 만드세요!</p>
+          <p>크레딧을 효율적으로 사용해서 최강의 라인업을 만드세요!</p>
         </div>
       </div>
     </div>

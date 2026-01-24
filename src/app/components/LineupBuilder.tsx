@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useDrag, useDrop } from 'react-dnd';
 import { Player, Lineup } from '@/app/types';
 import { TEAMS, getFieldPlayers, getPitchersByRole } from '@/app/data/mockPlayers';
 import { TEAM_THEMES } from '@/app/data/teamThemes';
@@ -15,322 +14,14 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/app/components/ui/accordion';
-import { Coins, X } from 'lucide-react';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/app/components/ui/select';
+import { Coins } from 'lucide-react';
 
-const ItemTypes = {
-  PLAYER: 'player',
-};
+import { DraggablePlayer } from './lineup/DraggablePlayer';
+import { LineupSlot } from './lineup/LineupSlot';
+import { PitcherSlot } from './lineup/PitcherSlot';
+import { BenchSlot } from './lineup/BenchSlot';
 
 const MAX_CREDITS = 2000; // 최대 크레딧 (테스트용)
-
-// 수비 포지션 목록
-const FIELD_POSITIONS = [
-  { value: '1B', label: '1루수' },
-  { value: '2B', label: '2루수' },
-  { value: '3B', label: '3루수' },
-  { value: 'SS', label: '유격수' },
-  { value: 'LF', label: '좌익수' },
-  { value: 'CF', label: '중견수' },
-  { value: 'RF', label: '우익수' },
-  { value: 'C', label: '포수' },
-  { value: 'P', label: '투수' },
-  { value: 'DH', label: '지명타자' },
-];
-
-interface DraggablePlayerProps {
-  player: Player;
-}
-
-function DraggablePlayer({ player }: DraggablePlayerProps) {
-  const [{ isDragging }, drag] = useDrag({
-    type: ItemTypes.PLAYER,
-    item: { player },
-    collect: (monitor) => ({
-      isDragging: monitor.isDragging(),
-    }),
-  });
-
-  return (
-    <div ref={drag} className={isDragging ? 'opacity-50' : ''}>
-      <Card className="p-3 cursor-move hover:shadow-md transition-shadow">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-base">{player.name}</span>
-              <Badge variant="outline" className="text-xs">
-                {player.position}
-              </Badge>
-            </div>
-            <div className="text-xs text-muted-foreground mt-1">{player.team}</div>
-          </div>
-          <div className="text-right">
-            <div className="flex items-center gap-1 text-amber-600 font-bold">
-              <Coins className="w-3 h-3" />
-              <span className="text-sm">{player.salary}</span>
-            </div>
-            <div className="text-xs text-muted-foreground mt-1">
-              폼 {player.recentForm}/10
-            </div>
-          </div>
-        </div>
-        <div className="mt-3 grid grid-cols-4 gap-2 text-xs">
-          {player.stats.avg !== undefined && (
-            <div>
-              <div className="text-muted-foreground">AVG</div>
-              <div className="font-semibold">{player.stats.avg.toFixed(3)}</div>
-            </div>
-          )}
-          {player.stats.ops !== undefined && (
-            <div>
-              <div className="text-muted-foreground">OPS</div>
-              <div className="font-semibold text-blue-600">{player.stats.ops.toFixed(3)}</div>
-            </div>
-          )}
-          {player.stats.hr !== undefined && (
-            <div>
-              <div className="text-muted-foreground">HR</div>
-              <div className="font-semibold">{player.stats.hr}</div>
-            </div>
-          )}
-          {player.stats.rbi !== undefined && (
-            <div>
-              <div className="text-muted-foreground">RBI</div>
-              <div className="font-semibold">{player.stats.rbi}</div>
-            </div>
-          )}
-          {player.stats.era !== undefined && (
-            <div>
-              <div className="text-muted-foreground">ERA</div>
-              <div className="font-semibold text-green-600">{player.stats.era.toFixed(2)}</div>
-            </div>
-          )}
-          {player.stats.whip !== undefined && (
-            <div>
-              <div className="text-muted-foreground">WHIP</div>
-              <div className="font-semibold">{player.stats.whip.toFixed(2)}</div>
-            </div>
-          )}
-          {player.stats.k !== undefined && (
-            <div>
-              <div className="text-muted-foreground">K</div>
-              <div className="font-semibold">{player.stats.k}</div>
-            </div>
-          )}
-        </div>
-      </Card>
-    </div>
-  );
-}
-
-interface LineupSlotProps {
-  index: number;
-  player: Player | null;
-  fieldPosition: string | null;
-  onDrop: (player: Player, index: number) => void;
-  onRemove: (index: number) => void;
-  onPositionChange: (index: number, position: string) => void;
-  label: string;
-  usedPositions: (string | null)[];
-}
-
-function LineupSlot({ 
-  index, 
-  player, 
-  fieldPosition,
-  onDrop, 
-  onRemove, 
-  onPositionChange,
-  label,
-  usedPositions 
-}: LineupSlotProps) {
-  const [{ isOver }, drop] = useDrop({
-    accept: ItemTypes.PLAYER,
-    drop: (item: { player: Player }) => {
-      if (item.player.position !== '투수') {
-        onDrop(item.player, index);
-      }
-    },
-    collect: (monitor) => ({
-      isOver: monitor.isOver(),
-    }),
-  });
-
-  // 사용 가능한 포지션 필터링
-  const availablePositions = FIELD_POSITIONS.filter((pos) => {
-    // 이미 선택된 포지션이면 현재 인덱스가 아닌 경우에만 제외
-    return !usedPositions.some((used, idx) => used === pos.value && idx !== index);
-  });
-
-  return (
-    <div
-      ref={drop}
-      className={`min-h-[70px] rounded border-2 border-dashed p-2 transition-colors text-sm ${
-        isOver ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
-      }`}
-    >
-      <div className="text-xs text-muted-foreground mb-1">{label}</div>
-      {player ? (
-        <div className="space-y-1">
-          <div className="flex items-center justify-between gap-2">
-            <div className="text-xs flex-1">
-              <span className="font-semibold">{player.name}</span>
-              <span className="text-muted-foreground ml-1">({player.position})</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="flex items-center gap-1 text-amber-600 text-xs font-bold">
-                <Coins className="w-3 h-3" />
-                {player.salary}
-              </div>
-              <button
-                onClick={() => onRemove(index)}
-                className="p-0.5 hover:bg-red-100 rounded transition-colors"
-                title="제거"
-              >
-                <X className="w-3 h-3 text-red-600" />
-              </button>
-            </div>
-          </div>
-          <Select value={fieldPosition || ''} onValueChange={(val) => onPositionChange(index, val)}>
-            <SelectTrigger className="h-7 text-xs">
-              <SelectValue placeholder="수비 포지션 선택" />
-            </SelectTrigger>
-            <SelectContent>
-              {availablePositions.map((pos) => (
-                <SelectItem key={pos.value} value={pos.value} className="text-xs">
-                  {pos.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      ) : (
-        <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
-          드래그
-        </div>
-      )}
-    </div>
-  );
-}
-
-interface PitcherSlotProps {
-  player: Player | null;
-  onDrop: (player: Player) => void;
-  onRemove: () => void;
-  role: 'starter' | 'middle' | 'closer';
-  label: string;
-}
-
-function PitcherSlot({ player, onDrop, onRemove, role, label }: PitcherSlotProps) {
-  const [{ isOver }, drop] = useDrop({
-    accept: ItemTypes.PLAYER,
-    drop: (item: { player: Player }) => {
-      if (item.player.position === '투수' && item.player.pitcherRole === role) {
-        onDrop(item.player);
-      }
-    },
-    collect: (monitor) => ({
-      isOver: monitor.isOver(),
-    }),
-  });
-
-  return (
-    <div
-      ref={drop}
-      className={`min-h-[50px] rounded border-2 border-dashed p-2 transition-colors text-sm ${
-        isOver ? 'border-green-500 bg-green-50' : 'border-gray-300'
-      }`}
-    >
-      <div className="text-xs font-bold text-muted-foreground mb-1">{label}</div>
-      {player ? (
-        <div className="flex items-center justify-between gap-2">
-          <span className="font-semibold text-xs flex-1">{player.name}</span>
-          <div className="flex items-center gap-1">
-            <div className="flex items-center gap-1 text-amber-600 text-xs font-bold">
-              <Coins className="w-3 h-3" />
-              {player.salary}
-            </div>
-            <button
-              onClick={onRemove}
-              className="p-0.5 hover:bg-red-100 rounded transition-colors"
-              title="제거"
-            >
-              <X className="w-3 h-3 text-red-600" />
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="flex items-center justify-center text-xs text-muted-foreground">
-          드래그
-        </div>
-      )}
-    </div>
-  );
-}
-
-interface BenchSlotProps {
-  index: number;
-  player: Player | null;
-  onDrop: (player: Player, index: number) => void;
-  onRemove: (index: number) => void;
-  label: string;
-}
-
-function BenchSlot({ index, player, onDrop, onRemove, label }: BenchSlotProps) {
-  const [{ isOver }, drop] = useDrop({
-    accept: ItemTypes.PLAYER,
-    drop: (item: { player: Player }) => {
-      if (item.player.position !== '투수') {
-        onDrop(item.player, index);
-      }
-    },
-    collect: (monitor) => ({
-      isOver: monitor.isOver(),
-    }),
-  });
-
-  return (
-    <div
-      ref={drop}
-      className={`min-h-[50px] rounded border-2 border-dashed p-2 transition-colors text-sm ${
-        isOver ? 'border-purple-500 bg-purple-50' : 'border-gray-300'
-      }`}
-    >
-      <div className="text-xs text-muted-foreground mb-1">{label}</div>
-      {player ? (
-        <div className="flex items-center justify-between gap-2">
-          <div className="text-xs flex-1">
-            <span className="font-semibold">{player.name}</span>
-            <span className="text-muted-foreground ml-1">({player.position})</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="flex items-center gap-1 text-amber-600 text-xs font-bold">
-              <Coins className="w-3 h-3" />
-              {player.salary}
-            </div>
-            <button
-              onClick={() => onRemove(index)}
-              className="p-0.5 hover:bg-red-100 rounded transition-colors"
-              title="제거"
-            >
-              <X className="w-3 h-3 text-red-600" />
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
-          드래그
-        </div>
-      )}
-    </div>
-  );
-}
 
 interface LineupBuilderProps {
   onLineupComplete: (lineup: Lineup) => void;
@@ -375,7 +66,7 @@ export function LineupBuilder({ onLineupComplete }: LineupBuilderProps) {
     const selectedBatting: Player[] = [];
     const selectedBench: Player[] = [];
     const selectedFieldPositions: (string | null)[] = Array(9).fill(null);
-    
+
     // 수비 포지션 배열 (9명)
     const requiredPositions = ['C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'DH'];
     const usedPlayerIds = new Set<string>();
@@ -383,10 +74,10 @@ export function LineupBuilder({ onLineupComplete }: LineupBuilderProps) {
     // 각 수비 포지션에 맞는 선수 배치
     for (let i = 0; i < 9; i++) {
       const position = requiredPositions[i];
-      
+
       // 해당 포지션을 할 수 있는 선수 찾기 (아직 선택 안 된 선수)
       let selectedPlayer: Player | null = null;
-      
+
       for (const player of allBatters) {
         if (
           !usedPlayerIds.has(player.id) &&
@@ -401,7 +92,7 @@ export function LineupBuilder({ onLineupComplete }: LineupBuilderProps) {
           break;
         }
       }
-      
+
       // 해당 포지션을 찾지 못하면 DH나 다른 포지션으로 대체
       if (!selectedPlayer) {
         for (const player of allBatters) {
@@ -500,24 +191,24 @@ export function LineupBuilder({ onLineupComplete }: LineupBuilderProps) {
   // 총 사용 크레딧 계산
   const calculateTotalCredits = () => {
     let total = 0;
-    
+
     // 타자
     lineup.batting.forEach((player) => {
       if (player) total += player.salary;
     });
-    
+
     // 투수
     if (lineup.pitchers.starter) total += lineup.pitchers.starter.salary;
     lineup.pitchers.middle.forEach((player) => {
       if (player) total += player.salary;
     });
     if (lineup.pitchers.closer) total += lineup.pitchers.closer.salary;
-    
+
     // 벤치
     lineup.bench.forEach((player) => {
       if (player) total += player.salary;
     });
-    
+
     return total;
   };
 
@@ -540,7 +231,7 @@ export function LineupBuilder({ onLineupComplete }: LineupBuilderProps) {
       alert('크레딧이 부족합니다!');
       return;
     }
-    
+
     const newBatting = [...lineup.batting];
     newBatting[index] = player;
     setLineup({ ...lineup, batting: newBatting });
@@ -668,7 +359,7 @@ export function LineupBuilder({ onLineupComplete }: LineupBuilderProps) {
       <div className="max-w-[1600px] mx-auto">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-3xl font-bold">라인업 빌더</h2>
-          
+
           {/* 크레딧 표시 */}
           <Card className="px-6 py-3">
             <div className="flex items-center gap-3">
@@ -680,8 +371,8 @@ export function LineupBuilder({ onLineupComplete }: LineupBuilderProps) {
                 </div>
               </div>
             </div>
-            <Progress 
-              value={creditPercentage} 
+            <Progress
+              value={creditPercentage}
               className="mt-2 h-2"
             />
           </Card>
@@ -873,10 +564,10 @@ export function LineupBuilder({ onLineupComplete }: LineupBuilderProps) {
                 <h4 className="font-bold mb-2 text-blue-700 text-sm">타순</h4>
                 <div className="space-y-1">
                   {lineup.batting.map((player, index) => (
-                    <LineupSlot 
-                      key={index} 
-                      index={index} 
-                      player={player} 
+                    <LineupSlot
+                      key={index}
+                      index={index}
+                      player={player}
                       onDrop={handleBatterDrop}
                       onRemove={() => handleBatterDrop(null, index)}
                       onPositionChange={(idx, pos) => {
@@ -911,9 +602,9 @@ export function LineupBuilder({ onLineupComplete }: LineupBuilderProps) {
               </div>
 
               <div className="flex flex-col gap-2">
-                <Button 
-                  onClick={handleSubmit} 
-                  className="w-full" 
+                <Button
+                  onClick={handleSubmit}
+                  className="w-full"
                   size="lg"
                   disabled={remainingCredits < 0}
                 >

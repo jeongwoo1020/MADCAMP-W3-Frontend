@@ -148,6 +148,19 @@ export interface GameRoom {
 }
 
 // [8] 레거시 호환용 타입 (기존 코드에서 사용)
-export type Player = Hitter & Pitcher; // 임시 호환용
+export type Player = Hitter & Pitcher & {
+  salary: number;      // mockPlayers calculates this
+  recentForm?: number; // mockPlayers has this
+  stats?: {            // mockPlayers nested stats
+    avg?: number;
+    ops?: number;
+    hr?: number;
+    rbi?: number;
+    era?: number;
+    whip?: number;
+    k?: number;
+    [key: string]: any;
+  };
+};
 export type GameState = MatchInfo; // 임시 호환용
 export type GameHistory = MatchRecord; // 임시 호환용

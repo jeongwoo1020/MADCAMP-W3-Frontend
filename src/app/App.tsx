@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { Lineup, Stadium, MatchRecord } from '@/app/types';
@@ -10,10 +11,8 @@ import { SimulationGame } from '@/app/components/SimulationGame';
 import { GameResult } from '@/app/components/GameResult';
 import { MOCK_PLAYERS } from '@/app/data/mockPlayers';
 
-type GamePhase = 'login' | 'lobby' | 'my-lineup' | 'game-setup' | 'simulation' | 'result';
-
 export default function App() {
-  const [gamePhase, setGamePhase] = useState<GamePhase>('login');
+  const navigate = useNavigate();
   const [user, setUser] = useState<{ name: string; email: string; profileImage: string } | null>(null);
   const [gameMode, setGameMode] = useState<'friend' | 'invite' | 'random' | null>(null);
   const [myLineup, setMyLineup] = useState<Lineup | null>(null);
@@ -54,52 +53,48 @@ export default function App() {
   const handleCreateGame = (mode: 'friend' | 'invite' | 'random') => {
     setGameMode(mode);
     if (mode === 'random') {
-      // 랜덤 매칭의 경우 상대 라인업 자동 생성
       const opponent = generateOpponentLineup();
       setOpponentLineup(opponent);
     }
-    setGamePhase('my-lineup');
+    navigate('/lineup');
   };
 
   const handleJoinGame = (inviteCode: string) => {
     console.log('Join game with code:', inviteCode);
-    // TODO: 초대 코드로 게임 참여 로직 (Supabase 연동 후 구현)
     setGameMode('invite');
-    setGamePhase('my-lineup');
+    navigate('/lineup');
   };
 
   const handleMyLineupComplete = (lineup: Lineup) => {
     setMyLineup(lineup);
-    
-    // 랜덤 매칭의 경우 상대가 이미 있으므로 바로 게임 설정으로
+
     if (gameMode === 'random' && opponentLineup) {
-      setGamePhase('game-setup');
+      navigate('/setup');
     } else {
-      // 친구 대결의 경우 대기 (실제로는 Supabase로 동기화)
-      setGamePhase('game-setup');
-      // TODO: 친구가 라인업을 완성할 때까지 대기
-      // 데모용으로 AI 라인업 생성
-      if (!opponentLineup) {
-        const opponent = generateOpponentLineup();
-        setOpponentLineup(opponent);
-      }
+      setTimeout(() => {
+        // TODO: 친구가 라인업을 완성할 때까지 대기
+        if (!opponentLineup) {
+          const opponent = generateOpponentLineup();
+          setOpponentLineup(opponent);
+        }
+        navigate('/setup');
+      }, 500);
     }
   };
 
   const handleGameStart = (selectedStadium: Stadium, selectedIsHome: boolean) => {
     setStadium(selectedStadium);
     setIsHome(selectedIsHome);
-    setGamePhase('simulation');
+    navigate('/game');
   };
 
   const handleGameEnd = (score: { home: number; away: number }, history: MatchRecord[]) => {
     setFinalScore(score);
     setGameHistory(history);
-    setGamePhase('result');
+    navigate('/result');
   };
 
   const handleNewGame = () => {
-    setGamePhase('lobby');
     setGameMode(null);
     setMyLineup(null);
     setOpponentLineup(null);
@@ -107,55 +102,60 @@ export default function App() {
     setIsHome(true);
     setFinalScore(null);
     setGameHistory([]);
+    navigate('/lobby');
   };
 
   return (
     <DndProvider backend={HTML5Backend}>
-      <div>
-        {gamePhase === 'login' && (
-          <LoginScreen onLogin={(loggedInUser) => {
-            setUser(loggedInUser);
-            setGamePhase('lobby');
-          }} />
-        )}
+      <Routes>
+        <Route path="/" element={
+          user ? <Navigate to="/lobby" replace /> :
+            <LoginScreen onLogin={(loggedInUser) => {
+              setUser(loggedInUser);
+              navigate('/lobby');
+            }} />
+        } />
 
-        {gamePhase === 'lobby' && (
-          <GameLobby onCreateGame={handleCreateGame} onJoinGame={handleJoinGame} />
-        )}
+        <Route path="/lobby" element={
+          user ? <GameLobby onCreateGame={handleCreateGame} onJoinGame={handleJoinGame} /> : <Navigate to="/" replace />
+        } />
 
-        {gamePhase === 'my-lineup' && (
-          <LineupBuilder onLineupComplete={handleMyLineupComplete} />
-        )}
+        <Route path="/lineup" element={
+          user && gameMode ? <LineupBuilder onLineupComplete={handleMyLineupComplete} /> : <Navigate to="/" replace />
+        } />
 
-        {gamePhase === 'game-setup' && myLineup && opponentLineup && (
-          <GameSetup
-            myLineup={myLineup}
-            opponentLineup={opponentLineup}
-            onGameStart={handleGameStart}
-          />
-        )}
+        <Route path="/setup" element={
+          user && myLineup && opponentLineup ?
+            <GameSetup
+              myLineup={myLineup}
+              opponentLineup={opponentLineup}
+              onGameStart={handleGameStart}
+            /> : <Navigate to="/lobby" replace />
+        } />
 
-        {gamePhase === 'simulation' && myLineup && opponentLineup && stadium && (
-          <SimulationGame
-            myLineup={myLineup}
-            opponentLineup={opponentLineup}
-            stadium={stadium}
-            isHome={isHome}
-            onGameEnd={handleGameEnd}
-          />
-        )}
+        <Route path="/game" element={
+          user && myLineup && opponentLineup && stadium ?
+            <SimulationGame
+              myLineup={myLineup}
+              opponentLineup={opponentLineup}
+              stadium={stadium}
+              isHome={isHome}
+              onGameEnd={handleGameEnd}
+            /> : <Navigate to="/lobby" replace />
+        } />
 
-        {gamePhase === 'result' && myLineup && opponentLineup && finalScore && (
-          <GameResult
-            myLineup={myLineup}
-            opponentLineup={opponentLineup}
-            finalScore={finalScore}
-            isHome={isHome}
-            gameHistory={gameHistory}
-            onNewGame={handleNewGame}
-          />
-        )}
-      </div>
+        <Route path="/result" element={
+          user && myLineup && opponentLineup && finalScore ?
+            <GameResult
+              myLineup={myLineup}
+              opponentLineup={opponentLineup}
+              finalScore={finalScore}
+              isHome={isHome}
+              gameHistory={gameHistory}
+              onNewGame={handleNewGame}
+            /> : <Navigate to="/lobby" replace />
+        } />
+      </Routes>
     </DndProvider>
   );
 }
