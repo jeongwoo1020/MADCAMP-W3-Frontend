@@ -33,23 +33,23 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
       }}
     >
       {/* 오버레이 */}
-      <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/60 to-black/80" />
+      <div className="absolute inset-0 bg-dark-charcoal/90" />
 
       {/* 게임 로고/타이틀 영역 */}
       <div className="relative z-10 w-full max-w-5xl">
         {/* 메인 타이틀 */}
         <div className="text-center mb-12 animate-in fade-in duration-1000">
           <div className="mb-6">
-            <div className="text-8xl mb-4 drop-shadow-lg animate-bounce">⚾</div>
+            <div className="text-8xl mb-4 drop-shadow-[0_0_15px_rgba(255,49,49,0.5)] animate-bounce text-white">⚾</div>
             <h1 className="text-7xl font-black mb-4 text-white drop-shadow-2xl tracking-tight">
-              <span className="bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-sonic-red via-cyber-yellow to-voltage-blue bg-clip-text text-transparent drop-shadow-[0_0_10px_rgba(255,49,49,0.3)]">
                 BASEBALL
               </span>
             </h1>
             <h2 className="text-4xl font-bold text-white drop-shadow-xl mb-2">
               프로야구 시뮬레이션 PvP
             </h2>
-            <p className="text-xl text-gray-300 font-medium">
+            <p className="text-xl text-gray-400 font-medium">
               실시간 대결로 최고의 감독이 되어보세요
             </p>
           </div>
@@ -57,34 +57,35 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
 
         {/* 게임 특징 카드 */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
-          <div className="bg-gradient-to-br from-blue-600/20 to-blue-800/20 backdrop-blur-md border-2 border-blue-400/30 rounded-xl p-6 text-center transform hover:scale-105 transition-transform">
-            <div className="text-5xl mb-3">🎮</div>
+          <div className="bg-card/50 backdrop-blur-md border border-sonic-red/30 rounded-xl p-6 text-center transform hover:scale-105 transition-transform shadow-[0_0_15px_rgba(255,49,49,0.1)] hover:shadow-[0_0_20px_rgba(255,49,49,0.3)]">
+            <div className="text-5xl mb-3 text-sonic-red drop-shadow-[0_0_10px_rgba(255,49,49,0.5)]">🎮</div>
             <div className="text-white font-bold text-lg mb-1">실시간 PvP</div>
-            <div className="text-gray-300 text-sm">친구와 실시간 대결</div>
+            <div className="text-gray-400 text-sm">친구와 실시간 대결</div>
           </div>
-          <div className="bg-gradient-to-br from-green-600/20 to-green-800/20 backdrop-blur-md border-2 border-green-400/30 rounded-xl p-6 text-center transform hover:scale-105 transition-transform">
-            <div className="text-5xl mb-3">📊</div>
+          <div className="bg-card/50 backdrop-blur-md border border-cyber-yellow/30 rounded-xl p-6 text-center transform hover:scale-105 transition-transform shadow-[0_0_15px_rgba(255,240,31,0.1)] hover:shadow-[0_0_20px_rgba(255,240,31,0.3)]">
+            <div className="text-5xl mb-3 text-cyber-yellow drop-shadow-[0_0_10px_rgba(255,240,31,0.5)]">📊</div>
             <div className="text-white font-bold text-lg mb-1">실제 선수 데이터</div>
-            <div className="text-gray-300 text-sm">KBO 리그 선수 통계</div>
+            <div className="text-gray-400 text-sm">KBO 리그 선수 통계</div>
           </div>
-          <div className="bg-gradient-to-br from-purple-600/20 to-purple-800/20 backdrop-blur-md border-2 border-purple-400/30 rounded-xl p-6 text-center transform hover:scale-105 transition-transform">
-            <div className="text-5xl mb-3">⚡</div>
+          <div className="bg-card/50 backdrop-blur-md border border-voltage-blue/30 rounded-xl p-6 text-center transform hover:scale-105 transition-transform shadow-[0_0_15px_rgba(0,212,255,0.1)] hover:shadow-[0_0_20px_rgba(0,212,255,0.3)]">
+            <div className="text-5xl mb-3 text-voltage-blue drop-shadow-[0_0_10px_rgba(0,212,255,0.5)]">⚡</div>
             <div className="text-white font-bold text-lg mb-1">전략적 매니지먼트</div>
-            <div className="text-gray-300 text-sm">투수교체, 대타/대주자</div>
+            <div className="text-gray-400 text-sm">투수교체, 대타/대주자</div>
           </div>
-          <div className="bg-gradient-to-br from-yellow-600/20 to-orange-800/20 backdrop-blur-md border-2 border-yellow-400/30 rounded-xl p-6 text-center transform hover:scale-105 transition-transform">
-            <div className="text-5xl mb-3">🏆</div>
+          <div className="bg-card/50 backdrop-blur-md border border-white/20 rounded-xl p-6 text-center transform hover:scale-105 transition-transform shadow-[0_0_15px_rgba(255,255,255,0.1)] hover:shadow-[0_0_20px_rgba(255,255,255,0.2)]">
+            <div className="text-5xl mb-3 text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">🏆</div>
             <div className="text-white font-bold text-lg mb-1">랭킹 시스템</div>
-            <div className="text-gray-300 text-sm">실력을 겨루세요</div>
+            <div className="text-gray-400 text-sm">실력을 겨루세요</div>
           </div>
         </div>
 
         {/* 로그인 버튼 영역 */}
         <div className="max-w-md mx-auto">
-          <Card className="p-8 bg-black/60 backdrop-blur-xl border-2 border-white/20 shadow-2xl">
+          <Card className="p-8 bg-card/80 backdrop-blur-xl border border-voltage-blue/30 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-sonic-red via-cyber-yellow to-voltage-blue" />
             <Button
               onClick={handleGoogleLogin}
-              className="w-full h-16 text-lg font-bold bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white border-0 shadow-lg transform hover:scale-105 transition-transform"
+              className="w-full h-16 text-lg font-bold bg-white hover:bg-gray-200 text-black border-0 shadow-[0_0_15px_rgba(255,255,255,0.4)] hover:shadow-[0_0_25px_rgba(255,255,255,0.6)] transform hover:scale-105 transition-all"
               size="lg"
             >
               <svg className="w-6 h-6 mr-3" viewBox="0 0 24 24">
@@ -108,12 +109,12 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
               게임 시작하기
             </Button>
 
-            <p className="text-xs text-gray-400 text-center mt-6">
+            {/* <p className="text-xs text-gray-400 text-center mt-6">
               로그인하면{" "}
-              <span className="underline text-gray-300">이용약관</span> 및{" "}
-              <span className="underline text-gray-300">개인정보 처리방침</span>
+              <span className="underline text-gray-300 hover:text-white cursor-pointer">이용약관</span> 및{" "}
+              <span className="underline text-gray-300 hover:text-white cursor-pointer">개인정보 처리방침</span>
               에 동의하게 됩니다
-            </p>
+            </p> */}
           </Card>
         </div>
       </div>
