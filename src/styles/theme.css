@@ -2,43 +2,67 @@
 
 :root {
   --font-size: 16px;
-  --background: #ffffff;
-  --foreground: oklch(0.145 0 0);
-  --card: #ffffff;
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: #030213;
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.95 0.0058 264.53);
-  --secondary-foreground: #030213;
-  --muted: #ececf0;
-  --muted-foreground: #717182;
-  --accent: #e9ebef;
-  --accent-foreground: #030213;
-  --destructive: #d4183d;
+
+  /* User Palette - Neon Dark Theme */
+  --sonic-red: #FF3131;
+  --cyber-yellow: #FFF01F;
+  --dark-charcoal: #1A1A1B;
+  --voltage-blue: #00D4FF;
+
+  /* Semantic Mapping */
+  --background: var(--dark-charcoal);
+  --foreground: #ffffff;
+
+  --card: #202022;
+  /* Slightly lighter than BG */
+  --card-foreground: #ffffff;
+
+  --popover: var(--dark-charcoal);
+  --popover-foreground: #ffffff;
+
+  --primary: var(--sonic-red);
+  --primary-foreground: #ffffff;
+
+  --secondary: var(--cyber-yellow);
+  --secondary-foreground: #1A1A1B;
+
+  --accent: var(--voltage-blue);
+  --accent-foreground: #1A1A1B;
+
+  --muted: #2A2A2D;
+  --muted-foreground: #A1A1AA;
+
+  --destructive: #FF0000;
   --destructive-foreground: #ffffff;
-  --border: rgba(0, 0, 0, 0.1);
-  --input: transparent;
-  --input-background: #f3f3f5;
-  --switch-background: #cbced4;
+
+  --border: #333333;
+  --input: #333333;
+
+  --input-background: #202022;
+  --switch-background: #333333;
+
   --font-weight-medium: 500;
   --font-weight-normal: 400;
-  --ring: oklch(0.708 0 0);
+
+  --ring: var(--voltage-blue);
+
+  /* Original charts kept (or can be updated) */
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
+
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: #030213;
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+
+  --sidebar: var(--dark-charcoal);
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: var(--sonic-red);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--voltage-blue);
+  --sidebar-accent-foreground: #1A1A1B;
+  --sidebar-border: #333333;
+  --sidebar-ring: var(--voltage-blue);
 }
 
 .dark {
@@ -117,6 +141,12 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* User Named Colors */
+  --color-sonic-red: var(--sonic-red);
+  --color-cyber-yellow: var(--cyber-yellow);
+  --color-dark-charcoal: var(--dark-charcoal);
+  --color-voltage-blue: var(--voltage-blue);
 }
 
 @layer base {

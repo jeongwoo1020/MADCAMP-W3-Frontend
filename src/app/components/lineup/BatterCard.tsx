@@ -9,7 +9,7 @@ interface BatterCardProps {
 
 export function BatterCard({ player }: BatterCardProps) {
     return (
-        <Card className="p-3 cursor-move hover:shadow-md transition-shadow">
+        <Card className="p-3 cursor-move hover:shadow-md transition-shadow bg-white text-black border-gray-200">
             <div className="flex items-start justify-between">
                 <div className="flex-1">
                     <div className="flex items-center gap-2">
@@ -33,25 +33,25 @@ export function BatterCard({ player }: BatterCardProps) {
             <div className="mt-3 grid grid-cols-4 gap-2 text-xs">
                 {player.stats?.avg !== undefined && (
                     <div>
-                        <div className="text-muted-foreground">AVG</div>
+                        <div className="text-gray-500">AVG</div>
                         <div className="font-semibold">{player.stats.avg.toFixed(3)}</div>
                     </div>
                 )}
                 {player.stats?.ops !== undefined && (
                     <div>
-                        <div className="text-muted-foreground">OPS</div>
+                        <div className="text-gray-500">OPS</div>
                         <div className="font-semibold text-blue-600">{player.stats.ops.toFixed(3)}</div>
                     </div>
                 )}
                 {player.stats?.hr !== undefined && (
                     <div>
-                        <div className="text-muted-foreground">HR</div>
+                        <div className="text-gray-500">HR</div>
                         <div className="font-semibold">{player.stats.hr}</div>
                     </div>
                 )}
                 {player.stats?.rbi !== undefined && (
                     <div>
-                        <div className="text-muted-foreground">RBI</div>
+                        <div className="text-gray-500">RBI</div>
                         <div className="font-semibold">{player.stats.rbi}</div>
                     </div>
                 )}

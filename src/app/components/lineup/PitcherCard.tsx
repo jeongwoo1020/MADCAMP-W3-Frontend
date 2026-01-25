@@ -9,7 +9,7 @@ interface PitcherCardProps {
 
 export function PitcherCard({ player }: PitcherCardProps) {
     return (
-        <Card className="p-3 cursor-move hover:shadow-md transition-shadow">
+        <Card className="p-3 cursor-move hover:shadow-md transition-shadow bg-white text-black border-gray-200">
             <div className="flex items-start justify-between">
                 <div className="flex-1">
                     <div className="flex items-center gap-2">
@@ -34,19 +34,19 @@ export function PitcherCard({ player }: PitcherCardProps) {
             <div className="mt-3 grid grid-cols-4 gap-2 text-xs">
                 {player.stats?.era !== undefined && (
                     <div>
-                        <div className="text-muted-foreground">ERA</div>
+                        <div className="text-gray-500">ERA</div>
                         <div className="font-semibold text-green-600">{player.stats.era.toFixed(2)}</div>
                     </div>
                 )}
                 {player.stats?.whip !== undefined && (
                     <div>
-                        <div className="text-muted-foreground">WHIP</div>
+                        <div className="text-gray-500">WHIP</div>
                         <div className="font-semibold">{player.stats.whip.toFixed(2)}</div>
                     </div>
                 )}
                 {player.stats?.k !== undefined && (
                     <div>
-                        <div className="text-muted-foreground">K</div>
+                        <div className="text-gray-500">K</div>
                         <div className="font-semibold">{player.stats.k}</div>
                     </div>
                 )}

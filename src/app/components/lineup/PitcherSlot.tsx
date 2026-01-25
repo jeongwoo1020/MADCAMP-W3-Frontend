@@ -27,13 +27,13 @@ export function PitcherSlot({ player, onDrop, onRemove, role, label }: PitcherSl
     return (
         <div
             ref={drop}
-            className={`min-h-[50px] rounded border-2 border-dashed p-2 transition-colors text-sm ${isOver ? 'border-green-500 bg-green-50' : 'border-gray-300'
+            className={`min-h-[50px] rounded border-2 border-dashed p-2 transition-colors text-sm bg-white/90 text-black ${isOver ? 'border-green-500 bg-green-50' : 'border-gray-400'
                 }`}
         >
-            <div className="text-xs font-bold text-muted-foreground mb-1">{label}</div>
+            <div className="text-xs font-bold text-gray-600 mb-1">{label}</div>
             {player ? (
                 <div className="flex items-center justify-between gap-2">
-                    <span className="font-semibold text-xs flex-1">{player.name}</span>
+                    <span className="font-semibold text-xs flex-1 text-black">{player.name}</span>
                     <div className="flex items-center gap-1">
                         <div className="flex items-center gap-1 text-amber-600 text-xs font-bold">
                             <Coins className="w-3 h-3" />
@@ -49,7 +49,7 @@ export function PitcherSlot({ player, onDrop, onRemove, role, label }: PitcherSl
                     </div>
                 </div>
             ) : (
-                <div className="flex items-center justify-center text-xs text-muted-foreground">
+                <div className="flex items-center justify-center text-xs text-gray-500 font-medium">
                     드래그
                 </div>
             )}
