@@ -64,163 +64,48 @@ export function GameSetup({
   };
 
   return (
-    <div 
-      className="min-h-screen relative overflow-hidden"
+    <div
+      className="min-h-screen relative overflow-hidden bg-black"
       style={{
-        backgroundImage: 'url(https://images.unsplash.com/photo-1645536727800-7049be76bccf?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxiYXNlYmFsbCUyMHN0YWRpdW0lMjBlbnRyYW5jZXxlbnwxfHx8fDE3NjkzMTU5NjV8MA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral)',
+        backgroundImage: 'url(https://images.unsplash.com/photo-1729280968440-367f2775afce?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxiYXNlYmFsbCUyMGZpZWxkJTIwZ3Jhc3N8ZW58MXx8fHwxNzY5MzE1MTY1fDA&ixlib=rb-4.1.0&q=80&w=1080)',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
       }}
     >
       {/* 오버레이 */}
-      <div className="absolute inset-0 bg-gradient-to-b from-black/90 via-black/85 to-black/90" />
+      <div className="absolute inset-0 bg-black/80" />
 
       <div className="max-w-[1600px] mx-auto p-6 relative z-10">
         {/* 헤더 */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
-            <Trophy className="w-12 h-12 text-yellow-400" />
-            <h2 className="text-6xl font-black bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 bg-clip-text text-transparent">
+            <Trophy className="w-12 h-12 text-yellow-500" />
+            <h2 className="text-6xl font-black text-white drop-shadow-[0_0_10px_rgba(255,49,49,0.3)]">
               경기 준비
             </h2>
-            <Trophy className="w-12 h-12 text-yellow-400" />
+            <Trophy className="w-12 h-12 text-yellow-500" />
           </div>
           <p className="text-white/80 text-xl font-semibold">경기 시작 전 라인업과 설정을 확인하세요</p>
-        </div>
-
-        {/* 팀 대결 카드 */}
-        <div className="grid grid-cols-3 gap-6 mb-8 items-center">
-          {/* 우리 팀 */}
-          <Card 
-            className="p-6 bg-gradient-to-br from-white/95 to-white/90 backdrop-blur-xl border-4 shadow-2xl"
-            style={{ borderColor: myTheme?.primary }}
-          >
-            <div className="text-center mb-4">
-              <Badge className="mb-2 text-xs" style={{ backgroundColor: myTheme?.primary }}>
-                내 팀
-              </Badge>
-              <div 
-                className="w-24 h-24 mx-auto rounded-full flex items-center justify-center mb-3 border-4"
-                style={{ 
-                  backgroundColor: myTheme?.primary,
-                  borderColor: myTheme?.primary,
-                }}
-              >
-                <Users className="w-12 h-12 text-white" />
-              </div>
-              <h3 className="text-2xl font-black mb-2">{myTeam}</h3>
-              <div className="flex items-center justify-center gap-1 text-amber-600 font-bold">
-                <Coins className="w-4 h-4" />
-                <span>{myCredits} 크레딧</span>
-              </div>
-            </div>
-
-            <Separator className="my-4" />
-
-            {/* 타순 미리보기 */}
-            <div className="space-y-2">
-              <h4 className="font-bold text-sm text-muted-foreground">선발 라인업</h4>
-              {myLineup.batting.slice(0, 5).map((player, idx) => (
-                <div key={idx} className="flex items-center justify-between text-xs bg-gray-50 p-2 rounded">
-                  <span className="font-semibold">{idx + 1}. {player?.name}</span>
-                  <Badge variant="secondary" className="text-xs">{player?.position}</Badge>
-                </div>
-              ))}
-              <div className="text-center text-xs text-muted-foreground pt-1">
-                +4명
-              </div>
-              <div className="mt-3 pt-3 border-t">
-                <div className="text-xs font-bold mb-1">선발투수</div>
-                <div className="text-xs bg-green-50 p-2 rounded">
-                  {myLineup.pitchers.starter?.name}
-                </div>
-              </div>
-            </div>
-          </Card>
-
-          {/* VS 중앙 */}
-          <div className="text-center">
-            <div className="text-8xl font-black bg-gradient-to-b from-red-500 via-orange-500 to-yellow-500 bg-clip-text text-transparent animate-pulse">
-              VS
-            </div>
-          </div>
-
-          {/* 상대 팀 */}
-          {opponentLineup ? (
-            <Card 
-              className="p-6 bg-gradient-to-br from-white/95 to-white/90 backdrop-blur-xl border-4 shadow-2xl"
-              style={{ borderColor: opponentTheme?.primary }}
-            >
-              <div className="text-center mb-4">
-                <Badge className="mb-2 text-xs" style={{ backgroundColor: opponentTheme?.primary }}>
-                  상대 팀
-                </Badge>
-                <div 
-                  className="w-24 h-24 mx-auto rounded-full flex items-center justify-center mb-3 border-4"
-                  style={{ 
-                    backgroundColor: opponentTheme?.primary,
-                    borderColor: opponentTheme?.primary,
-                  }}
-                >
-                  <Users className="w-12 h-12 text-white" />
-                </div>
-                <h3 className="text-2xl font-black mb-2">{opponentTeam}</h3>
-                <div className="flex items-center justify-center gap-1 text-amber-600 font-bold">
-                  <Coins className="w-4 h-4" />
-                  <span>{opponentCredits} 크레딧</span>
-                </div>
-              </div>
-
-              <Separator className="my-4" />
-
-              {/* 타순 미리보기 */}
-              <div className="space-y-2">
-                <h4 className="font-bold text-sm text-muted-foreground">선발 라인업</h4>
-                {opponentLineup.batting.slice(0, 5).map((player, idx) => (
-                  <div key={idx} className="flex items-center justify-between text-xs bg-gray-50 p-2 rounded">
-                    <span className="font-semibold">{idx + 1}. {player?.name}</span>
-                    <Badge variant="secondary" className="text-xs">{player?.position}</Badge>
-                  </div>
-                ))}
-                <div className="text-center text-xs text-muted-foreground pt-1">
-                  +4명
-                </div>
-                <div className="mt-3 pt-3 border-t">
-                  <div className="text-xs font-bold mb-1">선발투수</div>
-                  <div className="text-xs bg-green-50 p-2 rounded">
-                    {opponentLineup.pitchers.starter?.name}
-                  </div>
-                </div>
-              </div>
-            </Card>
-          ) : (
-            <Card className="p-6 bg-white/90 backdrop-blur-xl flex items-center justify-center h-full">
-              <div className="text-center text-muted-foreground">
-                <div className="text-6xl mb-4 animate-bounce">⏳</div>
-                <div className="text-lg font-bold">상대를 찾고 있습니다...</div>
-              </div>
-            </Card>
-          )}
         </div>
 
         {/* 게임 설정 섹션 */}
         <div className="grid grid-cols-2 gap-6 mb-8">
           {/* 구장 선택 */}
-          <Card className="p-6 bg-gradient-to-br from-white/95 to-white/90 backdrop-blur-xl border-2 border-white/30">
+          {/* 구장 선택 */}
+          <Card className="p-6 bg-white/70 backdrop-blur-md border border-white/20 shadow-2xl">
             <div className="flex items-center gap-2 mb-4">
               <MapPin className="w-6 h-6 text-blue-600" />
-              <h3 className="text-2xl font-black">구장 선택</h3>
+              <h3 className="text-2xl font-black text-black">구장 선택</h3>
             </div>
             <div className="grid grid-cols-2 gap-3 max-h-[400px] overflow-y-auto pr-2">
               {STADIUMS.map((stadium) => (
                 <div
                   key={stadium.id}
                   onClick={() => setSelectedStadium(stadium)}
-                  className={`cursor-pointer rounded-xl overflow-hidden border-4 transition-all shadow-lg hover:scale-105 ${
-                    selectedStadium.id === stadium.id
-                      ? "border-blue-500 ring-4 ring-blue-300"
-                      : "border-gray-200 hover:border-gray-400"
-                  }`}
+                  className={`cursor-pointer rounded-xl overflow-hidden border-4 transition-all shadow-lg hover:scale-105 ${selectedStadium.id === stadium.id
+                    ? "border-blue-500 ring-4 ring-blue-300"
+                    : "border-gray-200 hover:border-gray-400"
+                    }`}
                 >
                   <img
                     src={stadium.image}
@@ -228,8 +113,8 @@ export function GameSetup({
                     className="w-full h-28 object-cover"
                   />
                   <div className="p-3 bg-white">
-                    <div className="font-bold text-sm">{stadium.name}</div>
-                    <div className="text-xs text-muted-foreground">{stadium.city}</div>
+                    <div className="font-bold text-sm text-black">{stadium.name}</div>
+                    <div className="text-xs text-gray-500">{stadium.city}</div>
                   </div>
                 </div>
               ))}
@@ -237,10 +122,10 @@ export function GameSetup({
           </Card>
 
           {/* 홈/원정 선택 */}
-          <Card className="p-6 bg-gradient-to-br from-white/95 to-white/90 backdrop-blur-xl border-2 border-white/30">
+          <Card className="p-6 bg-white/70 backdrop-blur-md border border-white/20 shadow-2xl">
             <div className="flex items-center gap-2 mb-4">
               <Users className="w-6 h-6 text-purple-600" />
-              <h3 className="text-2xl font-black">홈/원정 선택</h3>
+              <h3 className="text-2xl font-black text-black">홈/원정 선택</h3>
             </div>
             <RadioGroup
               value={homeAway}
@@ -249,12 +134,11 @@ export function GameSetup({
               }
               className="space-y-4"
             >
-              <div 
-                className={`p-6 border-4 rounded-xl cursor-pointer transition-all ${
-                  homeAway === "home" 
-                    ? "border-blue-500 bg-blue-50 ring-4 ring-blue-300" 
-                    : "border-gray-200 bg-white hover:border-gray-400"
-                }`}
+              <div
+                className={`p-6 border-4 rounded-xl cursor-pointer transition-all ${homeAway === "home"
+                  ? "border-blue-500 bg-blue-50/80 ring-4 ring-blue-300"
+                  : "border-gray-200 bg-white/60 hover:border-gray-400"
+                  }`}
                 onClick={() => setHomeAway("home")}
               >
                 <div className="flex items-center space-x-3">
@@ -263,19 +147,18 @@ export function GameSetup({
                     htmlFor="home"
                     className="flex-1 cursor-pointer"
                   >
-                    <div className="font-black text-xl">🏠 홈 (후공)</div>
-                    <div className="text-sm text-muted-foreground mt-1">
+                    <div className="font-black text-xl text-black">🏠 홈 (후공)</div>
+                    <div className="text-sm text-gray-600 mt-1">
                       홈 팀으로 플레이합니다. 후공으로 경기를 진행합니다.
                     </div>
                   </Label>
                 </div>
               </div>
-              <div 
-                className={`p-6 border-4 rounded-xl cursor-pointer transition-all ${
-                  homeAway === "away" 
-                    ? "border-purple-500 bg-purple-50 ring-4 ring-purple-300" 
-                    : "border-gray-200 bg-white hover:border-gray-400"
-                }`}
+              <div
+                className={`p-6 border-4 rounded-xl cursor-pointer transition-all ${homeAway === "away"
+                  ? "border-purple-500 bg-purple-50/80 ring-4 ring-purple-300"
+                  : "border-gray-200 bg-white/60 hover:border-gray-400"
+                  }`}
                 onClick={() => setHomeAway("away")}
               >
                 <div className="flex items-center space-x-3">
@@ -284,8 +167,8 @@ export function GameSetup({
                     htmlFor="away"
                     className="flex-1 cursor-pointer"
                   >
-                    <div className="font-black text-xl">✈️ 원정 (선공)</div>
-                    <div className="text-sm text-muted-foreground mt-1">
+                    <div className="font-black text-xl text-black">✈️ 원정 (선공)</div>
+                    <div className="text-sm text-gray-600 mt-1">
                       원정 팀으로 플레이합니다. 선공으로 경기를 시작합니다.
                     </div>
                   </Label>
@@ -294,10 +177,10 @@ export function GameSetup({
             </RadioGroup>
 
             {/* 선택된 구장 정보 */}
-            <div className="mt-6 p-4 bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-400 rounded-xl">
-              <div className="text-sm font-bold text-yellow-800 mb-1">선택된 구장</div>
-              <div className="font-black text-lg">{selectedStadium.name}</div>
-              <div className="text-xs text-muted-foreground">{selectedStadium.city}</div>
+            <div className="mt-6 p-4 bg-orange-50/80 border border-orange-200 rounded-xl">
+              <div className="text-sm font-bold text-orange-800 mb-1">선택된 구장</div>
+              <div className="font-black text-lg text-black">{selectedStadium.name}</div>
+              <div className="text-xs text-gray-600">{selectedStadium.city}</div>
             </div>
           </Card>
         </div>

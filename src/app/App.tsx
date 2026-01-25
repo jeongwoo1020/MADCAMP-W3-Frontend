@@ -15,6 +15,7 @@ import { LineupBuilder } from "@/app/components/LineupBuilder";
 import { GameSetup } from "@/app/components/GameSetup";
 import { SimulationGame } from "@/app/components/SimulationGame";
 import { GameResult } from "@/app/components/GameResult";
+import { VSPage } from "@/app/components/vs";
 import { MOCK_PLAYERS } from "@/app/data/mockPlayers";
 
 function AppRoutes() {
@@ -81,6 +82,8 @@ function AppRoutes() {
         closer,
       },
       bench,
+      fieldPositions: Array(9).fill(null),
+      hasDH: false,
     };
   };
 
@@ -124,6 +127,10 @@ function AppRoutes() {
   ) => {
     setStadium(selectedStadium);
     setIsHome(selectedIsHome);
+    navigate("/vs");
+  };
+
+  const handleVsComplete = () => {
     navigate("/game");
   };
 
@@ -201,6 +208,21 @@ function AppRoutes() {
                 myLineup={myLineup}
                 opponentLineup={opponentLineup}
                 onGameStart={handleGameStart}
+              />
+            ) : (
+              <Navigate to="/lobby" replace />
+            )
+          }
+        />
+
+        <Route
+          path="/vs"
+          element={
+            user && myLineup && opponentLineup ? (
+              <VSPage
+                myLineup={myLineup}
+                opponentLineup={opponentLineup}
+                onComplete={handleVsComplete}
               />
             ) : (
               <Navigate to="/lobby" replace />
