@@ -363,17 +363,37 @@ export function SimulationGame({
   };
 
   return (
-    <div 
-      className="min-h-screen flex flex-col bg-gradient-to-br from-green-900 via-green-800 to-green-900 p-4 gap-4"
+    <div
+      className="min-h-screen flex flex-col p-4 gap-4 relative overflow-hidden bg-black"
+      style={{
+        backgroundImage: 'url(https://images.unsplash.com/photo-1729280968440-367f2775afce?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxiYXNlYmFsbCUyMGZpZWxkJTIwZ3Jhc3N8ZW58MXx8fHwxNzY5MzE1MTY1fDA&ixlib=rb-4.1.0&q=80&w=1080)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }}
     >
+      {/* 오버레이 */}
+      <div className="absolute inset-0 bg-black/80" />
+
+      {/* 상단 헤더 */}
+      <div className="w-full max-w-[1600px] relative z-10 pt-10 px-6 mx-auto">
+        <div className="text-center mb-10">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <h2 className="text-5xl font-black text-white drop-shadow-[0_0_15px_rgba(57,255,20,0.6)] tracking-tighter">
+              게임 시뮬레이션
+            </h2>
+          </div>
+          <p className="text-white text-2xl">실시간 경기 중계를 보고 작전을 세워보세요</p>
+        </div>
+      </div>
+
       {/* 상단 영역: 2:6:2 비율 그리드 */}
-      <div className="flex-1 grid grid-cols-10 gap-4">
+      <div className="flex-1 grid grid-cols-10 gap-4 relative z-10">
         {/* 좌측: 스코어보드 & BSO (2칸) */}
         <div className="col-span-2 flex flex-col gap-4">
           {/* 스코어보드 */}
-          <Card className="p-4 bg-gradient-to-br from-gray-900/95 to-black/95 backdrop-blur-xl border-2 border-white/30 shadow-2xl">
+          <Card className="p-4 bg-white/70 backdrop-blur-md border border-white/20 shadow-2xl">
             {/* 원정팀 */}
-            <div className="flex items-center justify-between mb-3 pb-3 border-b border-white/20">
+            <div className="flex items-center justify-between mb-3 pb-3 border-b border-black/10">
               <div className="flex items-center gap-2">
                 <div
                   className="w-8 h-8 rounded-full border-2 border-white/40"
@@ -382,11 +402,11 @@ export function SimulationGame({
                   }}
                 />
                 <div>
-                  <div className="text-xs text-gray-400 font-bold">원정</div>
-                  <div className="font-black text-white text-sm">{isHome ? opponentTeam : myTeam}</div>
+                  <div className="text-xs text-gray-600 font-bold">원정</div>
+                  <div className="font-black text-black text-sm">{isHome ? opponentTeam : myTeam}</div>
                 </div>
               </div>
-              <div className="text-4xl font-black text-white ml-4">{matchInfo.score.away}</div>
+              <div className="text-4xl font-black text-black ml-4">{matchInfo.score.away}</div>
             </div>
 
             {/* 홈팀 */}
@@ -397,20 +417,21 @@ export function SimulationGame({
                   style={{ backgroundColor: isHome ? myTheme?.primary : opponentTheme?.primary }}
                 />
                 <div>
-                  <div className="text-xs text-gray-400 font-bold">홈</div>
-                  <div className="font-black text-white text-sm">{isHome ? myTeam : opponentTeam}</div>
+                  <div className="text-xs text-gray-600 font-bold">홈</div>
+                  <div className="font-black text-black text-sm">{isHome ? myTeam : opponentTeam}</div>
                 </div>
               </div>
-              <div className="text-4xl font-black text-white ml-4">{matchInfo.score.home}</div>
+              <div className="text-4xl font-black text-black ml-4">{matchInfo.score.home}</div>
             </div>
           </Card>
 
           {/* BSO 카운트 & 이닝 */}
-          <Card className="flex-1 p-4 bg-gradient-to-br from-gray-900/95 to-black/95 backdrop-blur-xl border-2 border-white/30 shadow-2xl overflow-auto">
+          {/* BSO 카운트 & 이닝 */}
+          <Card className="flex-1 p-4 bg-white/70 backdrop-blur-md border border-white/20 shadow-2xl overflow-auto">
             {/* 이닝 */}
-            <div className="text-center mb-3 pb-3 border-b border-white/20">
-              <div className="text-xs text-yellow-400 font-bold">{stadium.name}</div>
-              <div className="text-2xl font-black text-white">
+            <div className="text-center mb-3 pb-3 border-b border-black/10">
+              <div className="text-xs text-yellow-600 font-bold">{stadium.name}</div>
+              <div className="text-2xl font-black text-black">
                 {matchInfo.inning}회 {isHomeTeam ? '말' : '초'}
               </div>
             </div>
@@ -418,46 +439,43 @@ export function SimulationGame({
             {/* BSO */}
             <div className="space-y-2 mb-3">
               <div className="flex items-center gap-2">
-                <span className="text-white font-black text-sm w-4">B</span>
+                <span className="text-black font-black text-sm w-4">B</span>
                 <div className="flex gap-1">
                   {[0, 1, 2, 3].map((i) => (
                     <div
                       key={i}
-                      className={`w-4 h-4 rounded-full border-2 ${
-                        i < matchInfo.ball_count.b 
-                          ? 'bg-green-500 border-green-400 shadow-lg shadow-green-500/50' 
-                          : 'bg-gray-800 border-gray-600'
-                      }`}
+                      className={`w-4 h-4 rounded-full border-2 ${i < matchInfo.ball_count.b
+                        ? 'bg-green-500 border-green-400 shadow-lg shadow-green-500/50'
+                        : 'bg-black/10 border-black/20'
+                        }`}
                     />
                   ))}
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-white font-black text-sm w-4">S</span>
+                <span className="text-black font-black text-sm w-4">S</span>
                 <div className="flex gap-1">
                   {[0, 1, 2].map((i) => (
                     <div
                       key={i}
-                      className={`w-4 h-4 rounded-full border-2 ${
-                        i < matchInfo.ball_count.s 
-                          ? 'bg-yellow-500 border-yellow-400 shadow-lg shadow-yellow-500/50' 
-                          : 'bg-gray-800 border-gray-600'
-                      }`}
+                      className={`w-4 h-4 rounded-full border-2 ${i < matchInfo.ball_count.s
+                        ? 'bg-yellow-500 border-yellow-400 shadow-lg shadow-yellow-500/50'
+                        : 'bg-black/10 border-black/20'
+                        }`}
                     />
                   ))}
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-white font-black text-sm w-4">O</span>
+                <span className="text-black font-black text-sm w-4">O</span>
                 <div className="flex gap-1">
                   {[0, 1, 2].map((i) => (
                     <div
                       key={i}
-                      className={`w-4 h-4 rounded-full border-2 ${
-                        i < matchInfo.ball_count.o 
-                          ? 'bg-red-500 border-red-400 shadow-lg shadow-red-500/50' 
-                          : 'bg-gray-800 border-gray-600'
-                      }`}
+                      className={`w-4 h-4 rounded-full border-2 ${i < matchInfo.ball_count.o
+                        ? 'bg-red-500 border-red-400 shadow-lg shadow-red-500/50'
+                        : 'bg-black/10 border-black/20'
+                        }`}
                     />
                   ))}
                 </div>
@@ -465,7 +483,7 @@ export function SimulationGame({
             </div>
 
             {/* 주자 상황 */}
-            <Separator className="my-3 bg-white/20" />
+            <Separator className="my-3 bg-black/10" />
             <div className="flex justify-center">
               <div className="relative w-24 h-24">
                 <svg viewBox="0 0 100 100" className="w-full h-full">
@@ -475,8 +493,8 @@ export function SimulationGame({
                     y="5"
                     width="16"
                     height="16"
-                    fill={matchInfo.runners[1] ? '#22c55e' : '#374151'}
-                    stroke={matchInfo.runners[1] ? '#16a34a' : '#6b7280'}
+                    fill={matchInfo.runners[1] ? '#22c55e' : '#e5e7eb'}
+                    stroke={matchInfo.runners[1] ? '#16a34a' : '#9ca3af'}
                     strokeWidth="2"
                     transform="rotate(45 50 13)"
                   />
@@ -486,8 +504,8 @@ export function SimulationGame({
                     y="42"
                     width="16"
                     height="16"
-                    fill={matchInfo.runners[2] ? '#22c55e' : '#374151'}
-                    stroke={matchInfo.runners[2] ? '#16a34a' : '#6b7280'}
+                    fill={matchInfo.runners[2] ? '#22c55e' : '#e5e7eb'}
+                    stroke={matchInfo.runners[2] ? '#16a34a' : '#9ca3af'}
                     strokeWidth="2"
                     transform="rotate(45 13 50)"
                   />
@@ -497,21 +515,21 @@ export function SimulationGame({
                     y="42"
                     width="16"
                     height="16"
-                    fill={matchInfo.runners[0] ? '#22c55e' : '#374151'}
-                    stroke={matchInfo.runners[0] ? '#16a34a' : '#6b7280'}
+                    fill={matchInfo.runners[0] ? '#22c55e' : '#e5e7eb'}
+                    stroke={matchInfo.runners[0] ? '#16a34a' : '#9ca3af'}
                     strokeWidth="2"
                     transform="rotate(45 87 50)"
                   />
                   {/* 홈 */}
-                  <rect 
-                    x="42" 
-                    y="79" 
-                    width="16" 
-                    height="16" 
-                    fill="#fbbf24" 
+                  <rect
+                    x="42"
+                    y="79"
+                    width="16"
+                    height="16"
+                    fill="#fbbf24"
                     stroke="#f59e0b"
                     strokeWidth="2"
-                    transform="rotate(45 50 87)" 
+                    transform="rotate(45 50 87)"
                   />
                 </svg>
               </div>
@@ -533,74 +551,74 @@ export function SimulationGame({
         {/* 우측: 투수 & 타자 (2칸) */}
         <div className="col-span-2 flex flex-col gap-4">
           {/* 투수 정보 */}
-          <Card className="flex-1 p-4 bg-gradient-to-br from-purple-900/95 to-purple-950/95 backdrop-blur-xl border-2 border-purple-500/40 shadow-2xl overflow-auto">
+          <Card className="flex-1 p-4 bg-white/70 backdrop-blur-md border border-white/20 shadow-2xl overflow-auto">
             <div className="flex items-center gap-2 mb-3">
-              <Target className="w-5 h-5 text-purple-400" />
-              <h3 className="font-bold text-purple-300">투수</h3>
+              <Target className="w-5 h-5 text-purple-600" />
+              <h3 className="font-bold text-black">투수</h3>
             </div>
             <div className="space-y-2">
               <div className="flex justify-between items-center">
-                <span className="font-black text-xl text-white">{currentPitcher?.name}</span>
+                <span className="font-black text-xl text-black">{currentPitcher?.name}</span>
                 <Badge className="bg-purple-600 text-white text-xs">{currentPitcher?.pitcherRole}</Badge>
               </div>
-              <div className="text-xs text-gray-300">{currentPitcher?.team}</div>
-              <Separator className="bg-white/20" />
+              <div className="text-xs text-gray-600">{currentPitcher?.team}</div>
+              <Separator className="bg-black/10" />
               <div className="grid grid-cols-3 gap-2 text-center">
-                <div className="bg-black/40 p-2 rounded">
-                  <div className="text-gray-400 text-xs font-bold">ERA</div>
-                  <div className="font-black text-white text-sm">{currentPitcher?.stats.era?.toFixed(2)}</div>
+                <div className="bg-white/50 border border-black/5 p-2 rounded">
+                  <div className="text-gray-500 text-xs font-bold">ERA</div>
+                  <div className="font-black text-black text-sm">{currentPitcher?.stats.era?.toFixed(2)}</div>
                 </div>
-                <div className="bg-black/40 p-2 rounded">
-                  <div className="text-gray-400 text-xs font-bold">WHIP</div>
-                  <div className="font-black text-white text-sm">{currentPitcher?.stats.whip?.toFixed(2)}</div>
+                <div className="bg-white/50 border border-black/5 p-2 rounded">
+                  <div className="text-gray-500 text-xs font-bold">WHIP</div>
+                  <div className="font-black text-black text-sm">{currentPitcher?.stats.whip?.toFixed(2)}</div>
                 </div>
-                <div className="bg-black/40 p-2 rounded">
-                  <div className="text-gray-400 text-xs font-bold">K</div>
-                  <div className="font-black text-white text-sm">{currentPitcher?.stats.k}</div>
+                <div className="bg-white/50 border border-black/5 p-2 rounded">
+                  <div className="text-gray-500 text-xs font-bold">K</div>
+                  <div className="font-black text-black text-sm">{currentPitcher?.stats.k}</div>
                 </div>
               </div>
               <div className="mt-2">
-                <div className="flex justify-between text-xs mb-1 text-white font-bold">
+                <div className="flex justify-between text-xs mb-1 text-black font-bold">
                   <span>스태미나</span>
                   <span>{Math.round(matchInfo.currentPitcher.stamina)}%</span>
                 </div>
-                <Progress value={matchInfo.currentPitcher.stamina} className="h-2" />
+                <Progress value={matchInfo.currentPitcher.stamina} className="h-2 bg-black/10" />
               </div>
-              <div className="text-xs text-gray-300 text-center bg-black/40 p-1.5 rounded">
+              <div className="text-xs text-gray-600 text-center bg-white/50 border border-black/5 p-1.5 rounded">
                 {matchInfo.pitches} 투구
               </div>
             </div>
           </Card>
 
           {/* 타자 정보 */}
-          <Card className="flex-1 p-4 bg-gradient-to-br from-blue-900/95 to-blue-950/95 backdrop-blur-xl border-2 border-blue-500/40 shadow-2xl overflow-auto">
+          <Card className="flex-1 p-4 bg-white/70 backdrop-blur-md border border-white/20 shadow-2xl overflow-auto">
             <div className="flex items-center gap-2 mb-3">
-              <User className="w-5 h-5 text-blue-400" />
-              <h3 className="font-bold text-blue-300">타자</h3>
+              <User className="w-5 h-5 text-blue-600" />
+              <h3 className="font-bold text-black">타자</h3>
             </div>
             <div className="space-y-2">
               <div className="flex justify-between items-center">
-                <span className="font-black text-xl text-white">{currentBatter?.name}</span>
-                <Badge variant="outline" className="border-blue-400 text-blue-400 text-sm">{matchInfo.currentBatter + 1}번</Badge>
+                <span className="font-black text-xl text-black">{currentBatter?.name}</span>
+                <Badge variant="outline" className="border-blue-600 text-blue-600 text-sm font-bold">{matchInfo.currentBatter + 1}번</Badge>
               </div>
-              <div className="text-xs text-gray-300">
+              <div className="text-xs text-gray-600">
                 {currentBatter?.team} • {currentBatter?.position}
               </div>
-              <Separator className="bg-white/20" />
+              <Separator className="bg-black/10" />
               <div className="grid grid-cols-3 gap-2 text-center">
-                <div className="bg-black/40 p-2 rounded">
-                  <div className="text-gray-400 text-xs font-bold">AVG</div>
-                  <div className="font-black text-white text-sm">{currentBatter?.stats.avg?.toFixed(3)}</div>
+                <div className="bg-white/50 border border-black/5 p-2 rounded">
+                  <div className="text-gray-500 text-xs font-bold">AVG</div>
+                  <div className="font-black text-black text-sm">{currentBatter?.stats.avg?.toFixed(3)}</div>
                 </div>
-                <div className="bg-black/40 p-2 rounded">
-                  <div className="text-gray-400 text-xs font-bold">OPS</div>
-                  <div className="font-black text-blue-400 text-sm">
+                <div className="bg-white/50 border border-black/5 p-2 rounded">
+                  <div className="text-gray-500 text-xs font-bold">OPS</div>
+                  <div className="font-black text-blue-600 text-sm">
                     {currentBatter?.stats.ops?.toFixed(3)}
                   </div>
                 </div>
-                <div className="bg-black/40 p-2 rounded">
-                  <div className="text-gray-400 text-xs font-bold">HR</div>
-                  <div className="font-black text-white text-sm">{currentBatter?.stats.hr}</div>
+                <div className="bg-white/50 border border-black/5 p-2 rounded">
+                  <div className="text-gray-500 text-xs font-bold">HR</div>
+                  <div className="font-black text-black text-sm">{currentBatter?.stats.hr}</div>
                 </div>
               </div>
             </div>
@@ -612,11 +630,11 @@ export function SimulationGame({
       <div className="grid grid-cols-10 gap-4">
         {/* 경기 로그 (탭 구조) - 7칸 */}
         <div className="col-span-7">
-          <Card className="p-4 bg-gradient-to-br from-gray-900/95 to-black/95 backdrop-blur-xl border-2 border-white/30 shadow-2xl">
+          <Card className="p-4 bg-white/70 backdrop-blur-md border border-white/20 shadow-2xl">
             <Tabs defaultValue="log" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-3">
-                <TabsTrigger value="log">경기 로그</TabsTrigger>
-                <TabsTrigger value="lineup">라인업</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-2 mb-3 bg-black/5">
+                <TabsTrigger value="log" className="data-[state=active]:bg-white data-[state=active]:text-black">경기 로그</TabsTrigger>
+                <TabsTrigger value="lineup" className="data-[state=active]:bg-white data-[state=active]:text-black">라인업</TabsTrigger>
               </TabsList>
               <TabsContent value="log">
                 <ScrollArea className="h-[200px]">
@@ -624,7 +642,7 @@ export function SimulationGame({
                     {gameLog.map((log, idx) => (
                       <div
                         key={idx}
-                        className="text-xs p-2 bg-black/40 rounded border border-white/10 text-gray-300"
+                        className="text-xs p-2 bg-white/50 rounded border border-black/5 text-gray-800"
                       >
                         {log}
                       </div>
@@ -637,7 +655,7 @@ export function SimulationGame({
                   <div className="grid grid-cols-2 gap-4">
                     {/* 우리팀 라인업 */}
                     <div>
-                      <h4 className="font-bold text-white mb-2 flex items-center gap-2">
+                      <h4 className="font-bold text-black mb-2 flex items-center gap-2">
                         <div
                           className="w-4 h-4 rounded-full"
                           style={{ backgroundColor: myTheme?.primary }}
@@ -646,9 +664,9 @@ export function SimulationGame({
                       </h4>
                       <div className="space-y-1">
                         {myLineup.batting.map((player, idx) => (
-                          <div key={idx} className="text-xs p-2 bg-black/40 rounded border border-white/10 text-gray-300 flex justify-between">
+                          <div key={idx} className="text-xs p-2 bg-white/50 rounded border border-black/5 text-gray-800 flex justify-between">
                             <span>{idx + 1}. {player.name} ({player.position})</span>
-                            <span className="text-blue-400">{player.stats.avg.toFixed(3)}</span>
+                            <span className="text-blue-600">{player.stats.avg.toFixed(3)}</span>
                           </div>
                         ))}
                       </div>
@@ -656,7 +674,7 @@ export function SimulationGame({
 
                     {/* 상대팀 라인업 */}
                     <div>
-                      <h4 className="font-bold text-white mb-2 flex items-center gap-2">
+                      <h4 className="font-bold text-black mb-2 flex items-center gap-2">
                         <div
                           className="w-4 h-4 rounded-full"
                           style={{ backgroundColor: opponentTheme?.primary }}
@@ -665,9 +683,9 @@ export function SimulationGame({
                       </h4>
                       <div className="space-y-1">
                         {opponentLineup.batting.map((player, idx) => (
-                          <div key={idx} className="text-xs p-2 bg-black/40 rounded border border-white/10 text-gray-300 flex justify-between">
+                          <div key={idx} className="text-xs p-2 bg-white/50 rounded border border-black/5 text-gray-800 flex justify-between">
                             <span>{idx + 1}. {player.name} ({player.position})</span>
-                            <span className="text-blue-400">{player.stats.avg.toFixed(3)}</span>
+                            <span className="text-blue-600">{player.stats.avg.toFixed(3)}</span>
                           </div>
                         ))}
                       </div>
@@ -681,8 +699,8 @@ export function SimulationGame({
 
         {/* Management - 3칸 */}
         <div className="col-span-3">
-          <Card className="p-4 bg-gradient-to-br from-gray-900/95 to-black/95 backdrop-blur-xl border-2 border-white/30 shadow-2xl">
-            <h3 className="font-bold text-lg mb-3 text-white flex items-center gap-2">
+          <Card className="p-4 bg-white/70 backdrop-blur-md border border-white/20 shadow-2xl">
+            <h3 className="font-bold text-lg mb-3 text-black flex items-center gap-2">
               <Users className="w-5 h-5" />
               Management
             </h3>
@@ -691,7 +709,11 @@ export function SimulationGame({
               <Button
                 onClick={handlePitch}
                 disabled={isSimulating || isGameOver}
-                className="w-full h-12 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 font-black text-base shadow-xl"
+                className="w-full h-12 font-black text-base shadow-xl text-white border-0 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                style={{
+                  backgroundColor: myTheme?.primary || '#22c55e',
+                  boxShadow: `0 0 20px ${myTheme?.primary}60`
+                }}
               >
                 {isSimulating ? '투구 중...' : '⚾ 투구'}
               </Button>
@@ -701,7 +723,7 @@ export function SimulationGame({
                 onClick={() => setAutoPlay(!autoPlay)}
                 disabled={isGameOver}
                 variant={autoPlay ? 'destructive' : 'default'}
-                className="w-full h-10 font-bold text-sm"
+                className={`w-full h-10 font-bold text-sm ${autoPlay ? '' : 'bg-black hover:bg-gray-800 text-white'}`}
               >
                 {autoPlay ? (
                   <>
@@ -716,30 +738,33 @@ export function SimulationGame({
                 )}
               </Button>
 
-              <Separator className="my-2 bg-white/10" />
+              <Separator className="my-2 bg-black/10" />
 
               {/* 교체 버튼들 */}
               <Button
                 onClick={() => setShowPitcherDialog(true)}
-                className="w-full h-9 bg-purple-600/90 hover:bg-purple-700/90 font-bold text-sm border-2 border-purple-400/50 shadow-lg"
+                className="w-full h-9 bg-white/80 hover:bg-white font-bold text-sm border-2 shadow-sm text-black transition-colors"
+                style={{ borderColor: myTheme?.primary }}
               >
-                <Repeat className="w-4 h-4 mr-1" />
+                <Repeat className="w-4 h-4 mr-1" style={{ color: myTheme?.primary }} />
                 투수교체
               </Button>
 
               <Button
                 onClick={() => setShowPinchHitterDialog(true)}
-                className="w-full h-9 bg-blue-600/90 hover:bg-blue-700/90 font-bold text-sm border-2 border-blue-400/50 shadow-lg"
+                className="w-full h-9 bg-white/80 hover:bg-white font-bold text-sm border-2 shadow-sm text-black transition-colors"
+                style={{ borderColor: myTheme?.primary }}
               >
-                <User className="w-4 h-4 mr-1" />
+                <User className="w-4 h-4 mr-1" style={{ color: myTheme?.primary }} />
                 대타
               </Button>
 
               <Button
                 onClick={() => setShowPinchRunnerDialog(true)}
-                className="w-full h-9 bg-orange-600/90 hover:bg-orange-700/90 font-bold text-sm border-2 border-orange-400/50 shadow-lg"
+                className="w-full h-9 bg-white/80 hover:bg-white font-bold text-sm border-2 shadow-sm text-black transition-colors"
+                style={{ borderColor: myTheme?.primary }}
               >
-                <User className="w-4 h-4 mr-1" />
+                <User className="w-4 h-4 mr-1" style={{ color: myTheme?.primary }} />
                 대주자
               </Button>
             </div>
