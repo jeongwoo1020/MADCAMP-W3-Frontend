@@ -9,6 +9,8 @@ import { ScrollArea } from '@/app/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/components/ui/tabs';
 import { TEAM_THEMES } from '@/app/data/teamThemes';
 import { BaseballField } from '@/app/components/BaseballField';
+import { PitcherCard } from '@/app/components/lineup/PitcherCard';
+import { BatterCard } from '@/app/components/lineup/BatterCard';
 import {
   Dialog,
   DialogContent,
@@ -69,7 +71,9 @@ export function SimulationGame({
     },
   });
 
-  const [isHomeTeam, setIsHomeTeam] = useState(!isHome);
+  // const [isHomeTeam, setIsHomeTeam] = useState(!isHome);
+  const isMyTeamBatting = isHome !== matchInfo.is_top;
+
   const [lastResult, setLastResult] = useState<AtBatResult | null>(null);
   const [gameLog, setGameLog] = useState<string[]>([]);
   const [matchRecords, setMatchRecords] = useState<MatchRecord[]>([]);
@@ -83,9 +87,9 @@ export function SimulationGame({
   const [showPinchRunnerDialog, setShowPinchRunnerDialog] = useState(false);
   const [selectedRunnerBase, setSelectedRunnerBase] = useState<0 | 1 | 2 | null>(null);
 
-  const currentLineup = isHomeTeam ? myLineup : opponentLineup;
+  const currentLineup = isMyTeamBatting ? myLineup : opponentLineup;
   const currentBatter = currentLineup.batting[matchInfo.currentBatter];
-  const currentPitcher = isHomeTeam
+  const currentPitcher = isMyTeamBatting
     ? opponentLineup.pitchers.starter
     : myLineup.pitchers.starter;
 
@@ -227,22 +231,22 @@ export function SimulationGame({
           newState.runners = [null, null, null];
           newState.currentBatter = 0;
 
-          if (isHomeTeam) {
-            setIsHomeTeam(false);
+          // Inning Flip Logic
+          if (newState.is_top) {
+            newState.is_top = false;
           } else {
-            setIsHomeTeam(true);
-            newState.inning++;
             newState.is_top = true;
+            newState.inning++;
           }
         }
         break;
     }
 
     if (runsScored > 0) {
-      if (isHomeTeam) {
-        newState.score.home += runsScored;
-      } else {
+      if (matchInfo.is_top) {
         newState.score.away += runsScored;
+      } else {
+        newState.score.home += runsScored;
       }
     }
 
@@ -269,7 +273,7 @@ export function SimulationGame({
       setMatchInfo(newState);
 
       setGameLog((prev) => [
-        `[${newState.inning}회 ${isHomeTeam ? '말' : '초'}] ${result.description}`,
+        `[${newState.inning}회 ${newState.is_top ? '초' : '말'}] ${result.description}`,
         ...prev,
       ]);
 
@@ -326,14 +330,21 @@ export function SimulationGame({
   const handlePinchHitter = (player: Hitter) => {
     const newLineup = { ...currentLineup };
     newLineup.batting[matchInfo.currentBatter] = player;
+
     setGameLog((prev) => [`[교체] ${currentBatter?.name} → ${player.name} 대타`, ...prev]);
+
     setMatchRecords((prev) => [
       ...prev,
       {
         match_id: matchInfo.match_id,
         inning: matchInfo.inning,
-        event_type: 'SUBSTITUTION',
-        data: { type: 'pinch_hitter', player: player },
+        event_type: 'MANAGEMENT',
+        data: {
+          command: 'PINCH_HITTER',
+          out_player_id: currentBatter?.id,
+          in_player_id: player.id,
+          description: `대타: ${player.name}`
+        },
         actor_id: player.id,
         description: `대타: ${player.name}`,
       },
@@ -344,16 +355,24 @@ export function SimulationGame({
   const handlePinchRunner = (player: Hitter, base: 0 | 1 | 2) => {
     const newRunners = [...matchInfo.runners];
     const oldRunner = newRunners[base];
+
     newRunners[base] = player;
     setMatchInfo({ ...matchInfo, runners: newRunners });
     setGameLog((prev) => [`[교체] ${oldRunner?.name} → ${player.name} 대주자 (${base + 1}루)`, ...prev]);
+
     setMatchRecords((prev) => [
       ...prev,
       {
         match_id: matchInfo.match_id,
         inning: matchInfo.inning,
-        event_type: 'SUBSTITUTION',
-        data: { type: 'pinch_runner', player: player, base },
+        event_type: 'MANAGEMENT',
+        data: {
+          command: 'PINCH_RUNNER',
+          out_player_id: oldRunner?.id,
+          in_player_id: player.id,
+          base: base,
+          description: `대주자: ${player.name} (${base + 1}루)`
+        },
         actor_id: player.id,
         description: `대주자: ${player.name} (${base + 1}루)`,
       },
@@ -375,254 +394,204 @@ export function SimulationGame({
       <div className="absolute inset-0 bg-black/80" />
 
       {/* 상단 헤더 */}
-      <div className="w-full max-w-[1600px] relative z-10 pt-10 px-6 mx-auto">
-        <div className="text-center mb-10">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <h2 className="text-5xl font-black text-white drop-shadow-[0_0_15px_rgba(57,255,20,0.6)] tracking-tighter">
+      <div className="w-full max-w-[1600px] relative z-10 pt-2 px-6 mx-auto">
+        <div className="text-center mb-2">
+          <div className="flex items-center justify-center gap-3 mb-2">
+            <h2 className="text-4xl font-black text-white drop-shadow-[0_0_15px_rgba(57,255,20,0.6)] tracking-tighter">
               게임 시뮬레이션
             </h2>
           </div>
-          <p className="text-white text-2xl">실시간 경기 중계를 보고 작전을 세워보세요</p>
+          <p className="text-white text-lg">실시간 경기 중계를 보고 작전을 세워보세요</p>
         </div>
       </div>
 
-      {/* 상단 영역: 2:6:2 비율 그리드 */}
-      <div className="flex-1 grid grid-cols-10 gap-4 relative z-10">
-        {/* 좌측: 스코어보드 & BSO (2칸) */}
-        <div className="col-span-2 flex flex-col gap-4">
-          {/* 스코어보드 */}
-          <Card className="p-4 bg-white/70 backdrop-blur-md border border-white/20 shadow-2xl">
-            {/* 원정팀 */}
-            <div className="flex items-center justify-between mb-3 pb-3 border-b border-black/10">
-              <div className="flex items-center gap-2">
-                <div
-                  className="w-8 h-8 rounded-full border-2 border-white/40"
-                  style={{
-                    backgroundColor: isHome ? opponentTheme?.primary : myTheme?.primary,
-                  }}
-                />
-                <div>
-                  <div className="text-xs text-gray-600 font-bold">원정</div>
-                  <div className="font-black text-black text-sm">{isHome ? opponentTeam : myTeam}</div>
-                </div>
-              </div>
-              <div className="text-4xl font-black text-black ml-4">{matchInfo.score.away}</div>
-            </div>
+      {/* 상단 영역: 7:3 비율 그리드 */}
+      <div className="h-[70vh] min-h-[500px] grid grid-cols-10 gap-4 relative z-10">
 
-            {/* 홈팀 */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div
-                  className="w-8 h-8 rounded-full border-2 border-white/40"
-                  style={{ backgroundColor: isHome ? myTheme?.primary : opponentTheme?.primary }}
-                />
-                <div>
-                  <div className="text-xs text-gray-600 font-bold">홈</div>
-                  <div className="font-black text-black text-sm">{isHome ? myTeam : opponentTeam}</div>
-                </div>
-              </div>
-              <div className="text-4xl font-black text-black ml-4">{matchInfo.score.home}</div>
-            </div>
-          </Card>
-
-          {/* BSO 카운트 & 이닝 */}
-          {/* BSO 카운트 & 이닝 */}
-          <Card className="flex-1 p-4 bg-white/70 backdrop-blur-md border border-white/20 shadow-2xl overflow-auto">
-            {/* 이닝 */}
-            <div className="text-center mb-3 pb-3 border-b border-black/10">
-              <div className="text-xs text-yellow-600 font-bold">{stadium.name}</div>
-              <div className="text-2xl font-black text-black">
-                {matchInfo.inning}회 {isHomeTeam ? '말' : '초'}
-              </div>
-            </div>
-
-            {/* BSO */}
-            <div className="space-y-2 mb-3">
-              <div className="flex items-center gap-2">
-                <span className="text-black font-black text-sm w-4">B</span>
-                <div className="flex gap-1">
-                  {[0, 1, 2, 3].map((i) => (
-                    <div
-                      key={i}
-                      className={`w-4 h-4 rounded-full border-2 ${i < matchInfo.ball_count.b
-                        ? 'bg-green-500 border-green-400 shadow-lg shadow-green-500/50'
-                        : 'bg-black/10 border-black/20'
-                        }`}
-                    />
-                  ))}
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-black font-black text-sm w-4">S</span>
-                <div className="flex gap-1">
-                  {[0, 1, 2].map((i) => (
-                    <div
-                      key={i}
-                      className={`w-4 h-4 rounded-full border-2 ${i < matchInfo.ball_count.s
-                        ? 'bg-yellow-500 border-yellow-400 shadow-lg shadow-yellow-500/50'
-                        : 'bg-black/10 border-black/20'
-                        }`}
-                    />
-                  ))}
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-black font-black text-sm w-4">O</span>
-                <div className="flex gap-1">
-                  {[0, 1, 2].map((i) => (
-                    <div
-                      key={i}
-                      className={`w-4 h-4 rounded-full border-2 ${i < matchInfo.ball_count.o
-                        ? 'bg-red-500 border-red-400 shadow-lg shadow-red-500/50'
-                        : 'bg-black/10 border-black/20'
-                        }`}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* 주자 상황 */}
-            <Separator className="my-3 bg-black/10" />
-            <div className="flex justify-center">
-              <div className="relative w-24 h-24">
-                <svg viewBox="0 0 100 100" className="w-full h-full">
-                  {/* 2루 */}
-                  <rect
-                    x="42"
-                    y="5"
-                    width="16"
-                    height="16"
-                    fill={matchInfo.runners[1] ? '#22c55e' : '#e5e7eb'}
-                    stroke={matchInfo.runners[1] ? '#16a34a' : '#9ca3af'}
-                    strokeWidth="2"
-                    transform="rotate(45 50 13)"
-                  />
-                  {/* 3루 */}
-                  <rect
-                    x="5"
-                    y="42"
-                    width="16"
-                    height="16"
-                    fill={matchInfo.runners[2] ? '#22c55e' : '#e5e7eb'}
-                    stroke={matchInfo.runners[2] ? '#16a34a' : '#9ca3af'}
-                    strokeWidth="2"
-                    transform="rotate(45 13 50)"
-                  />
-                  {/* 1루 */}
-                  <rect
-                    x="79"
-                    y="42"
-                    width="16"
-                    height="16"
-                    fill={matchInfo.runners[0] ? '#22c55e' : '#e5e7eb'}
-                    stroke={matchInfo.runners[0] ? '#16a34a' : '#9ca3af'}
-                    strokeWidth="2"
-                    transform="rotate(45 87 50)"
-                  />
-                  {/* 홈 */}
-                  <rect
-                    x="42"
-                    y="79"
-                    width="16"
-                    height="16"
-                    fill="#fbbf24"
-                    stroke="#f59e0b"
-                    strokeWidth="2"
-                    transform="rotate(45 50 87)"
-                  />
-                </svg>
-              </div>
-            </div>
-          </Card>
-        </div>
-
-        {/* 중앙: 야구장 다이아몬드 (6칸) */}
-        <div className="col-span-6 flex items-center justify-center">
-          <div className="w-full h-full flex items-center justify-center">
+        {/* 좌측: 야구장 다이아몬드 (7칸) */}
+        <div className="col-span-7 flex items-center justify-center overflow-hidden rounded-2xl bg-black/20 backdrop-blur-sm border border-white/5 shadow-2xl">
+          <div className="w-full h-full flex items-center justify-center p-4">
             <BaseballField
-              runners={matchInfo.runners}
+              lineup={isMyTeamBatting ? opponentLineup.batting : myLineup.batting}
+              fieldPositions={isMyTeamBatting ? opponentLineup.fieldPositions : myLineup.fieldPositions}
               currentBatter={currentBatter}
               currentPitcher={currentPitcher}
             />
           </div>
         </div>
 
-        {/* 우측: 투수 & 타자 (2칸) */}
-        <div className="col-span-2 flex flex-col gap-4">
-          {/* 투수 정보 */}
-          <Card className="flex-1 p-4 bg-white/70 backdrop-blur-md border border-white/20 shadow-2xl overflow-auto">
-            <div className="flex items-center gap-2 mb-3">
-              <Target className="w-5 h-5 text-purple-600" />
-              <h3 className="font-bold text-black">투수</h3>
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="font-black text-xl text-black">{currentPitcher?.name}</span>
-                <Badge className="bg-purple-600 text-white text-xs">{currentPitcher?.pitcherRole}</Badge>
-              </div>
-              <div className="text-xs text-gray-600">{currentPitcher?.team}</div>
-              <Separator className="bg-black/10" />
-              <div className="grid grid-cols-3 gap-2 text-center">
-                <div className="bg-white/50 border border-black/5 p-2 rounded">
-                  <div className="text-gray-500 text-xs font-bold">ERA</div>
-                  <div className="font-black text-black text-sm">{currentPitcher?.stats.era?.toFixed(2)}</div>
-                </div>
-                <div className="bg-white/50 border border-black/5 p-2 rounded">
-                  <div className="text-gray-500 text-xs font-bold">WHIP</div>
-                  <div className="font-black text-black text-sm">{currentPitcher?.stats.whip?.toFixed(2)}</div>
-                </div>
-                <div className="bg-white/50 border border-black/5 p-2 rounded">
-                  <div className="text-gray-500 text-xs font-bold">K</div>
-                  <div className="font-black text-black text-sm">{currentPitcher?.stats.k}</div>
-                </div>
-              </div>
-              <div className="mt-2">
-                <div className="flex justify-between text-xs mb-1 text-black font-bold">
-                  <span>스태미나</span>
-                  <span>{Math.round(matchInfo.currentPitcher.stamina)}%</span>
-                </div>
-                <Progress value={matchInfo.currentPitcher.stamina} className="h-2 bg-black/10" />
-              </div>
-              <div className="text-xs text-gray-600 text-center bg-white/50 border border-black/5 p-1.5 rounded">
-                {matchInfo.pitches} 투구
-              </div>
-            </div>
-          </Card>
+        {/* 우측: 통합 정보 패널 (3칸) */}
+        <div className="col-span-3 flex flex-col gap-3 h-full overflow-y-auto pr-1">
 
-          {/* 타자 정보 */}
-          <Card className="flex-1 p-4 bg-white/70 backdrop-blur-md border border-white/20 shadow-2xl overflow-auto">
-            <div className="flex items-center gap-2 mb-3">
-              <User className="w-5 h-5 text-blue-600" />
-              <h3 className="font-bold text-black">타자</h3>
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="font-black text-xl text-black">{currentBatter?.name}</span>
-                <Badge variant="outline" className="border-blue-600 text-blue-600 text-sm font-bold">{matchInfo.currentBatter + 1}번</Badge>
-              </div>
-              <div className="text-xs text-gray-600">
-                {currentBatter?.team} • {currentBatter?.position}
-              </div>
-              <Separator className="bg-black/10" />
-              <div className="grid grid-cols-3 gap-2 text-center">
-                <div className="bg-white/50 border border-black/5 p-2 rounded">
-                  <div className="text-gray-500 text-xs font-bold">AVG</div>
-                  <div className="font-black text-black text-sm">{currentBatter?.stats.avg?.toFixed(3)}</div>
-                </div>
-                <div className="bg-white/50 border border-black/5 p-2 rounded">
-                  <div className="text-gray-500 text-xs font-bold">OPS</div>
-                  <div className="font-black text-blue-600 text-sm">
-                    {currentBatter?.stats.ops?.toFixed(3)}
+          {/* 1. 스코어보드 & BSO (Light Theme) */}
+          <div className="flex flex-col bg-white rounded-xl border border-gray-200 overflow-hidden shadow-2xl shrink-0">
+            {/* Top: Scoreboard */}
+            <div className="flex-col justify-center px-5 py-4 border-b border-gray-100">
+              {/* Away Team */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-4">
+                  {/* Logo */}
+                  <div className="w-12 h-12 relative flex items-center justify-center">
+                    <img
+                      src={`/assets/logos/${isHome ? opponentTeam : myTeam}.png`}
+                      alt="Away Team Logo"
+                      className="w-full h-full object-contain drop-shadow-sm"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                      }}
+                    />
+                    <div className="hidden w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-400">
+                      {isHome ? opponentTeam?.[0] : myTeam?.[0]}
+                    </div>
+                  </div>
+                  {/* Name */}
+                  <div className="flex flex-col">
+                    <span className="text-gray-500 text-[10px] font-bold tracking-wider uppercase">AWAY</span>
+                    <span className="text-gray-900 font-black text-xl tracking-tight leading-none">
+                      {isHome ? opponentTeam : myTeam}
+                    </span>
                   </div>
                 </div>
-                <div className="bg-white/50 border border-black/5 p-2 rounded">
-                  <div className="text-gray-500 text-xs font-bold">HR</div>
-                  <div className="font-black text-black text-sm">{currentBatter?.stats.hr}</div>
+                <span className="text-3xl font-black text-gray-900 tabular-nums tracking-tighter">
+                  {matchInfo.score.away}
+                </span>
+              </div>
+
+              {/* Home Team */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  {/* Logo */}
+                  <div className="w-12 h-12 relative flex items-center justify-center">
+                    <img
+                      src={`/assets/logos/${isHome ? myTeam : opponentTeam}.png`}
+                      alt="Home Team Logo"
+                      className="w-full h-full object-contain drop-shadow-sm"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                      }}
+                    />
+                    <div className="hidden w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-400">
+                      {isHome ? myTeam?.[0] : opponentTeam?.[0]}
+                    </div>
+                  </div>
+                  {/* Name */}
+                  <div className="flex flex-col">
+                    <span className="text-gray-500 text-[10px] font-bold tracking-wider uppercase">HOME</span>
+                    <span className="text-gray-900 font-black text-xl tracking-tight leading-none">
+                      {isHome ? myTeam : opponentTeam}
+                    </span>
+                  </div>
+                </div>
+                <span className="text-3xl font-black text-gray-900 tabular-nums tracking-tighter">
+                  {matchInfo.score.home}
+                </span>
+              </div>
+            </div>
+
+            {/* Bottom: Game Status (Bases & BSO) */}
+            <div className="h-[120px] flex bg-gray-50 border-t border-gray-100">
+              {/* Left: Base & Inning */}
+              <div className="w-1/2 border-r border-gray-200 flex flex-col items-center justify-center p-2 relative">
+                {/* Bases Container */}
+                <div className="relative w-24 h-16 mb-1">
+                  {/* 2nd Base */}
+                  <div
+                    className={`absolute top-0 left-1/2 -translate-x-1/2 w-6 h-6 rotate-45 border-2 transition-all duration-300 ${matchInfo.runners[1] ? 'bg-yellow-400 border-yellow-500 shadow-md' : 'bg-white border-gray-300'}`}
+                  />
+                  {/* 3rd Base */}
+                  <div
+                    className={`absolute bottom-1 left-4 w-6 h-6 rotate-45 border-2 transition-all duration-300 ${matchInfo.runners[2] ? 'bg-yellow-400 border-yellow-500 shadow-md' : 'bg-white border-gray-300'}`}
+                  />
+                  {/* 1st Base */}
+                  <div
+                    className={`absolute bottom-1 right-4 w-6 h-6 rotate-45 border-2 transition-all duration-300 ${matchInfo.runners[0] ? 'bg-yellow-400 border-yellow-500 shadow-md' : 'bg-white border-gray-300'}`}
+                  />
+                </div>
+
+                {/* Inning */}
+                <div className="flex items-center gap-2 font-black text-xl text-gray-800">
+                  <span>{matchInfo.inning}회</span>
+                  {matchInfo.is_top ? (
+                    <span className="text-red-500 text-lg">▲</span> /* Top */
+                  ) : (
+                    <span className="text-blue-500 text-lg">▼</span> /* Bottom */
+                  )}
+                </div>
+              </div>
+
+              {/* Right: BSO */}
+              <div className="w-1/2 flex flex-col justify-center px-4 space-y-2">
+                {/* Ball */}
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-800 font-black text-lg w-4">B</span>
+                  <div className="flex gap-1.5">
+                    {[0, 1, 2].map((i) => (
+                      <div
+                        key={i}
+                        className={`w-4 h-4 rounded-full transition-all duration-200 border ${i < matchInfo.ball_count.b
+                          ? 'bg-green-500 border-green-600 shadow-[0_0_6px_#22c55e]'
+                          : 'bg-white border-gray-300'
+                          }`}
+                      />
+                    ))}
+                  </div>
+                </div>
+                {/* Strike */}
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-800 font-black text-lg w-4">S</span>
+                  <div className="flex gap-1.5">
+                    {[0, 1].map((i) => (
+                      <div
+                        key={i}
+                        className={`w-4 h-4 rounded-full transition-all duration-200 border ${i < matchInfo.ball_count.s
+                          ? 'bg-yellow-400 border-yellow-500 shadow-[0_0_6px_#facc15]'
+                          : 'bg-white border-gray-300'
+                          }`}
+                      />
+                    ))}
+                  </div>
+                </div>
+                {/* Out */}
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-800 font-black text-lg w-4">O</span>
+                  <div className="flex gap-1.5">
+                    {[0, 1].map((i) => (
+                      <div
+                        key={i}
+                        className={`w-4 h-4 rounded-full transition-all duration-200 border ${i < matchInfo.ball_count.o
+                          ? 'bg-red-500 border-red-600 shadow-[0_0_6px_#ef4444]'
+                          : 'bg-white border-gray-300'
+                          }`}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
-          </Card>
+          </div>
+
+          {/* 2. 투수 정보 (Shared Component) */}
+          <div className="flex-1 flex flex-col gap-2 shrink-0">
+            {currentPitcher && (
+              <div className="relative">
+                {/* @ts-ignore - Player type compatibility */}
+                <PitcherCard player={currentPitcher} />
+              </div>
+            )}
+          </div>
+
+          {/* 3. 타자 정보 (Shared Component) */}
+          <div className="flex-1 flex flex-col gap-2 shrink-0">
+            {currentBatter && (
+              <div className="relative">
+                {/* @ts-ignore - Player type compatibility */}
+                <BatterCard player={currentBatter} />
+              </div>
+            )}
+            {/* Batting Context (Optional - could add Hot/Cold zones later) */}
+          </div>
         </div>
       </div>
 
@@ -633,16 +602,16 @@ export function SimulationGame({
           <Card className="p-4 bg-white/70 backdrop-blur-md border border-white/20 shadow-2xl">
             <Tabs defaultValue="log" className="w-full">
               <TabsList className="grid w-full grid-cols-2 mb-3 bg-black/5">
-                <TabsTrigger value="log" className="data-[state=active]:bg-white data-[state=active]:text-black">경기 로그</TabsTrigger>
-                <TabsTrigger value="lineup" className="data-[state=active]:bg-white data-[state=active]:text-black">라인업</TabsTrigger>
+                <TabsTrigger value="log" className="text-base font-bold h-10 data-[state=active]:bg-white data-[state=active]:text-black">경기 로그</TabsTrigger>
+                <TabsTrigger value="lineup" className="text-base font-bold h-10 data-[state=active]:bg-white data-[state=active]:text-black">라인업</TabsTrigger>
               </TabsList>
               <TabsContent value="log">
-                <ScrollArea className="h-[200px]">
+                <ScrollArea className="h-[250px]">
                   <div className="space-y-1.5">
                     {gameLog.map((log, idx) => (
                       <div
                         key={idx}
-                        className="text-xs p-2 bg-white/50 rounded border border-black/5 text-gray-800"
+                        className="text-sm p-2.5 bg-white/50 rounded border border-black/5 text-gray-800"
                       >
                         {log}
                       </div>
@@ -651,22 +620,33 @@ export function SimulationGame({
                 </ScrollArea>
               </TabsContent>
               <TabsContent value="lineup">
-                <ScrollArea className="h-[200px]">
+                <ScrollArea className="h-[250px]">
                   <div className="grid grid-cols-2 gap-4">
                     {/* 우리팀 라인업 */}
                     <div>
-                      <h4 className="font-bold text-black mb-2 flex items-center gap-2">
-                        <div
-                          className="w-4 h-4 rounded-full"
-                          style={{ backgroundColor: myTheme?.primary }}
-                        />
+                      <h4 className="font-extrabold text-lg text-black mb-3 flex items-center gap-2">
+                        <div className="w-6 h-6 relative flex items-center justify-center">
+                          <img
+                            src={`/assets/logos/${myTeam}.png`}
+                            alt={myTeam}
+                            className="w-full h-full object-contain"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                              e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                            }}
+                          />
+                          <div
+                            className="hidden w-4 h-4 rounded-full"
+                            style={{ backgroundColor: myTheme?.primary }}
+                          />
+                        </div>
                         {myTeam}
                       </h4>
                       <div className="space-y-1">
                         {myLineup.batting.map((player, idx) => (
-                          <div key={idx} className="text-xs p-2 bg-white/50 rounded border border-black/5 text-gray-800 flex justify-between">
+                          <div key={idx} className="text-m p-2.5 bg-white/50 rounded border border-black/5 text-gray-800 flex justify-between">
                             <span>{idx + 1}. {player.name} ({player.position})</span>
-                            <span className="text-blue-600">{player.stats.avg.toFixed(3)}</span>
+                            <span className="text-blue-600 font-bold">{player.stats.avg.toFixed(3)}</span>
                           </div>
                         ))}
                       </div>
@@ -674,18 +654,29 @@ export function SimulationGame({
 
                     {/* 상대팀 라인업 */}
                     <div>
-                      <h4 className="font-bold text-black mb-2 flex items-center gap-2">
-                        <div
-                          className="w-4 h-4 rounded-full"
-                          style={{ backgroundColor: opponentTheme?.primary }}
-                        />
+                      <h4 className="font-extrabold text-lg text-black mb-3 flex items-center gap-2">
+                        <div className="w-6 h-6 relative flex items-center justify-center">
+                          <img
+                            src={`/assets/logos/${opponentTeam}.png`}
+                            alt={opponentTeam}
+                            className="w-full h-full object-contain"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                              e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                            }}
+                          />
+                          <div
+                            className="hidden w-4 h-4 rounded-full"
+                            style={{ backgroundColor: opponentTheme?.primary }}
+                          />
+                        </div>
                         {opponentTeam}
                       </h4>
                       <div className="space-y-1">
                         {opponentLineup.batting.map((player, idx) => (
-                          <div key={idx} className="text-xs p-2 bg-white/50 rounded border border-black/5 text-gray-800 flex justify-between">
+                          <div key={idx} className="text-m p-2.5 bg-white/50 rounded border border-black/5 text-gray-800 flex justify-between">
                             <span>{idx + 1}. {player.name} ({player.position})</span>
-                            <span className="text-blue-600">{player.stats.avg.toFixed(3)}</span>
+                            <span className="text-blue-600 font-bold">{player.stats.avg.toFixed(3)}</span>
                           </div>
                         ))}
                       </div>
@@ -772,7 +763,7 @@ export function SimulationGame({
         </div>
       </div>
 
-      {/* Dialogs */}
+      {/* Management Dialogs */}
       <Dialog open={showPitcherDialog} onOpenChange={setShowPitcherDialog}>
         <DialogContent>
           <DialogHeader>

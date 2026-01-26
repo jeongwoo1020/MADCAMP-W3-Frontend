@@ -79,11 +79,11 @@ export function GameSetup({
         {/* 헤더 */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
-            <Trophy className="w-12 h-12 text-yellow-500" />
-            <h2 className="text-6xl font-black text-white drop-shadow-[0_0_10px_rgba(255,49,49,0.3)]">
-              경기 준비
+            <Trophy className="w-8 h-8 text-cyber-yellow" />
+            <h2 className="text-5xl font-black text-white drop-shadow-[0_0_10px_rgba(255,240,31,0.5)]">
+              <span className="text-cyber-yellow">경기</span> 준비
             </h2>
-            <Trophy className="w-12 h-12 text-yellow-500" />
+            <Trophy className="w-8 h-8 text-cyber-yellow" />
           </div>
           <p className="text-white/80 text-xl font-semibold">경기 시작 전 라인업과 설정을 확인하세요</p>
         </div>
@@ -91,10 +91,9 @@ export function GameSetup({
         {/* 게임 설정 섹션 */}
         <div className="grid grid-cols-2 gap-6 mb-8">
           {/* 구장 선택 */}
-          {/* 구장 선택 */}
           <Card className="p-6 bg-white/70 backdrop-blur-md border border-white/20 shadow-2xl">
             <div className="flex items-center gap-2 mb-4">
-              <MapPin className="w-6 h-6 text-blue-600" />
+              <MapPin className="w-6 h-6 text-cyber-yellow" />
               <h3 className="text-2xl font-black text-black">구장 선택</h3>
             </div>
             <div className="grid grid-cols-2 gap-3 max-h-[400px] overflow-y-auto pr-2">
@@ -103,7 +102,7 @@ export function GameSetup({
                   key={stadium.id}
                   onClick={() => setSelectedStadium(stadium)}
                   className={`cursor-pointer rounded-xl overflow-hidden border-4 transition-all shadow-lg hover:scale-105 ${selectedStadium.id === stadium.id
-                    ? "border-blue-500 ring-4 ring-blue-300"
+                    ? "border-cyber-yellow ring-4 ring-yellow-100/30"
                     : "border-gray-200 hover:border-gray-400"
                     }`}
                 >
@@ -112,7 +111,7 @@ export function GameSetup({
                     alt={stadium.name}
                     className="w-full h-28 object-cover"
                   />
-                  <div className="p-3 bg-white">
+                  <div className={`p-3 ${selectedStadium.id === stadium.id ? "bg-yellow-50/30" : "bg-white"}`}>
                     <div className="font-bold text-sm text-black">{stadium.name}</div>
                     <div className="text-xs text-gray-500">{stadium.city}</div>
                   </div>
@@ -124,7 +123,7 @@ export function GameSetup({
           {/* 홈/원정 선택 */}
           <Card className="p-6 bg-white/70 backdrop-blur-md border border-white/20 shadow-2xl">
             <div className="flex items-center gap-2 mb-4">
-              <Users className="w-6 h-6 text-purple-600" />
+              <Users className="w-6 h-6 text-cyber-yellow" />
               <h3 className="text-2xl font-black text-black">홈/원정 선택</h3>
             </div>
             <RadioGroup
@@ -136,13 +135,13 @@ export function GameSetup({
             >
               <div
                 className={`p-6 border-4 rounded-xl cursor-pointer transition-all ${homeAway === "home"
-                  ? "border-blue-500 bg-blue-50/80 ring-4 ring-blue-300"
+                  ? "border-cyber-yellow bg-yellow-50/30 ring-4 ring-yellow-100/30"
                   : "border-gray-200 bg-white/60 hover:border-gray-400"
                   }`}
                 onClick={() => setHomeAway("home")}
               >
                 <div className="flex items-center space-x-3">
-                  <RadioGroupItem value="home" id="home" className="w-6 h-6" />
+                  <RadioGroupItem value="home" id="home" className="w-6 h-6 text-yellow-600 border-yellow-600" />
                   <Label
                     htmlFor="home"
                     className="flex-1 cursor-pointer"
@@ -156,13 +155,13 @@ export function GameSetup({
               </div>
               <div
                 className={`p-6 border-4 rounded-xl cursor-pointer transition-all ${homeAway === "away"
-                  ? "border-purple-500 bg-purple-50/80 ring-4 ring-purple-300"
+                  ? "border-cyber-yellow bg-yellow-50/30 ring-4 ring-yellow-100/30"
                   : "border-gray-200 bg-white/60 hover:border-gray-400"
                   }`}
                 onClick={() => setHomeAway("away")}
               >
                 <div className="flex items-center space-x-3">
-                  <RadioGroupItem value="away" id="away" className="w-6 h-6" />
+                  <RadioGroupItem value="away" id="away" className="w-6 h-6 text-yellow-600 border-yellow-600" />
                   <Label
                     htmlFor="away"
                     className="flex-1 cursor-pointer"
@@ -177,10 +176,10 @@ export function GameSetup({
             </RadioGroup>
 
             {/* 선택된 구장 정보 */}
-            <div className="mt-6 p-4 bg-orange-50/80 border border-orange-200 rounded-xl">
-              <div className="text-sm font-bold text-orange-800 mb-1">선택된 구장</div>
-              <div className="font-black text-lg text-black">{selectedStadium.name}</div>
-              <div className="text-xs text-gray-600">{selectedStadium.city}</div>
+            <div className="mt-6 p-4 bg-gray-900/90 border border-yellow-500/30 rounded-xl backdrop-blur-sm">
+              <div className="text-sm font-bold text-cyber-yellow mb-1">선택된 구장</div>
+              <div className="font-black text-lg text-white">{selectedStadium.name}</div>
+              <div className="text-xs text-gray-400">{selectedStadium.city}</div>
             </div>
           </Card>
         </div>
@@ -190,7 +189,7 @@ export function GameSetup({
           <Button
             onClick={handleStart}
             size="lg"
-            className="h-20 px-16 text-2xl font-black bg-gradient-to-r from-green-600 via-green-500 to-emerald-600 hover:from-green-700 hover:via-green-600 hover:to-emerald-700 shadow-2xl transform hover:scale-105 transition-all"
+            className="h-20 px-16 text-2xl font-black bg-cyber-yellow hover:bg-yellow-400 text-black shadow-[0_0_20px_rgba(255,240,31,0.4)] border-2 border-yellow-400 transform hover:scale-105 transition-all"
           >
             ⚾ 경기 시작하기
           </Button>

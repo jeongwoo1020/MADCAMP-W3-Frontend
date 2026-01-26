@@ -299,6 +299,7 @@ export function LineupBuilder({
   const remainingCredits = MAX_CREDITS - usedCredits;
   const creditPercentage = (usedCredits / MAX_CREDITS) * 100;
 
+  // 드롭다운 메뉴에서 선수 선택 - 타자, 선발투수, 중간투수, 마무리투수, 벤치
   const handleBatterDrop = (
     player: Player | null,
     index: number,
@@ -502,9 +503,6 @@ export function LineupBuilder({
           {/* 좌측 70% - 선수 목록 */}
           <div className="col-span-7">
             <Card className="p-6 min-h-[800px] flex flex-col bg-white/70 backdrop-blur-md border-white/20 shadow-2xl">
-              <h3 className="text-2xl font-bold mb-2 text-black">
-                선수 목록
-              </h3>
 
               {loading ? (
                 <div className="flex-1 flex items-center justify-center">
@@ -530,7 +528,7 @@ export function LineupBuilder({
                     </TabsTrigger>
                   </TabsList>
 
-                  <p className="text-sm text-gray-700 mb-4">
+                  <p className="text-m text-gray-700 mb-4">
                     선수를 드래그해서 라인업으로 구성하세요. (최대 {MAX_CREDITS} 크레딧)
                   </p>
 
@@ -541,7 +539,7 @@ export function LineupBuilder({
                     <Accordion
                       type="single"
                       collapsible
-                      className="w-full space-y-2"
+                      className="w-full space-y-4"
                     >
                       {TEAMS.map((team) => {
                         const theme = TEAM_THEMES[team] || {
@@ -555,31 +553,44 @@ export function LineupBuilder({
                           <AccordionItem
                             key={team}
                             value={team}
-                            className="border border-black/10 rounded-lg overflow-hidden"
+                            className="border border-black/10 rounded-xl overflow-hidden shadow-sm"
                           >
                             <AccordionTrigger
-                              className="hover:no-underline px-4 bg-white/40 hover:bg-white/60 text-black"
+                              className="hover:no-underline px-6 py-6 bg-white/60 hover:bg-white/80 text-black transition-all data-[state=open]:bg-white/90"
                             >
-                              <div className="flex items-center gap-3 w-full">
-                                <div
-                                  className="w-5 h-5 rounded-full ring-2 ring-black/10"
-                                  style={{
-                                    backgroundColor:
-                                      theme.primary,
-                                  }}
-                                />
-                                <span className="font-bold">
+                              <div className="flex items-center gap-6 w-full">
+                                {/* Team Logo */}
+                                <div className="w-16 h-16 flex-shrink-0 relative flex items-center justify-center">
+                                  <img
+                                    src={`/assets/logos/${team}.png`}
+                                    alt={`${team} logo`}
+                                    className="w-full h-full object-contain drop-shadow-md"
+                                    onError={(e) => {
+                                      e.currentTarget.style.display = 'none';
+                                      e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                                    }}
+                                  />
+                                  {/* Fallback Circle */}
+                                  <div
+                                    className="hidden w-14 h-14 rounded-full ring-4 ring-black/10 shadow-inner"
+                                    style={{
+                                      backgroundColor: theme.primary,
+                                    }}
+                                  />
+                                </div>
+
+                                <span className="font-black text-2xl tracking-tight">
                                   {team}
                                 </span>
                                 <Badge
                                   variant="secondary"
-                                  className="ml-auto bg-black/10 text-black hover:bg-black/20"
+                                  className="ml-auto bg-black/10 text-black hover:bg-black/20 text-lg px-3 py-1 font-bold"
                                 >
                                   {players.length}명
                                 </Badge>
                               </div>
                             </AccordionTrigger>
-                            <AccordionContent className="p-3 bg-white/30">
+                            <AccordionContent className="p-4 bg-white/40">
                               <div className="grid grid-cols-1 gap-2">
                                 {players.map((player) => (
                                   <DraggablePlayer
@@ -602,7 +613,7 @@ export function LineupBuilder({
                     <Accordion
                       type="single"
                       collapsible
-                      className="w-full space-y-2"
+                      className="w-full space-y-4"
                     >
                       {TEAMS.map((team) => {
                         const theme = TEAM_THEMES[team] || {
@@ -627,35 +638,48 @@ export function LineupBuilder({
                           <AccordionItem
                             key={team}
                             value={team}
-                            className="border border-black/10 rounded-lg overflow-hidden"
+                            className="border border-black/10 rounded-xl overflow-hidden shadow-sm"
                           >
                             <AccordionTrigger
-                              className="hover:no-underline px-4 bg-white/40 hover:bg-white/60 text-black"
+                              className="hover:no-underline px-6 py-6 bg-white/60 hover:bg-white/80 text-black transition-all data-[state=open]:bg-white/90"
                             >
-                              <div className="flex items-center gap-3 w-full">
-                                <div
-                                  className="w-5 h-5 rounded-full ring-2 ring-black/10"
-                                  style={{
-                                    backgroundColor:
-                                      theme.primary,
-                                  }}
-                                />
-                                <span className="font-bold">
+                              <div className="flex items-center gap-6 w-full">
+                                {/* Team Logo */}
+                                <div className="w-16 h-16 flex-shrink-0 relative flex items-center justify-center">
+                                  <img
+                                    src={`/assets/logos/${team}.png`}
+                                    alt={`${team} logo`}
+                                    className="w-full h-full object-contain drop-shadow-md"
+                                    onError={(e) => {
+                                      e.currentTarget.style.display = 'none';
+                                      e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                                    }}
+                                  />
+                                  {/* Fallback Circle */}
+                                  <div
+                                    className="hidden w-14 h-14 rounded-full ring-4 ring-black/10 shadow-inner"
+                                    style={{
+                                      backgroundColor: theme.primary,
+                                    }}
+                                  />
+                                </div>
+
+                                <span className="font-black text-2xl tracking-tight">
                                   {team}
                                 </span>
                                 <Badge
                                   variant="secondary"
-                                  className="ml-auto bg-black/10 text-black hover:bg-black/20"
+                                  className="ml-auto bg-black/10 text-black hover:bg-black/20 text-lg px-3 py-1 font-bold"
                                 >
                                   {totalPitchers}명
                                 </Badge>
                               </div>
                             </AccordionTrigger>
-                            <AccordionContent className="p-3 bg-white/30">
+                            <AccordionContent className="p-4 bg-white/40">
                               <div className="space-y-4 pt-2">
                                 {starters.length > 0 && (
                                   <div>
-                                    <h4 className="font-bold mb-2 text-voltage-blue text-sm">
+                                    <h4 className="font-bold mb-2 text-dark-charcoal text-base">
                                       선발 투수
                                     </h4>
                                     <div className="grid grid-cols-1 gap-2">
@@ -674,7 +698,7 @@ export function LineupBuilder({
                                   <>
                                     <Separator className="bg-black/10" />
                                     <div className="mt-2">
-                                      <h4 className="font-bold mb-2 text-voltage-blue text-sm">
+                                      <h4 className="font-bold mb-2 text-dark-charcoal text-base">
                                         중간 계투
                                       </h4>
                                       <div className="grid grid-cols-1 gap-2">
@@ -694,7 +718,7 @@ export function LineupBuilder({
                                   <>
                                     <Separator className="bg-black/10" />
                                     <div className="mt-2">
-                                      <h4 className="font-bold mb-2 text-voltage-blue text-sm">
+                                      <h4 className="font-bold mb-2 text-dark-charcoal text-base">
                                         마무리 투수
                                       </h4>
                                       <div className="grid grid-cols-1 gap-2">
@@ -752,10 +776,10 @@ export function LineupBuilder({
             >
               {/* 타자 라인업 */}
               <AccordionItem value="batting" className="border-0">
-                <AccordionTrigger className="hover:no-underline px-4 bg-white/70 hover:bg-white/90 border-0 rounded-t-lg transition-colors">
-                  <span className="font-bold flex items-center justify-between w-full pr-4 text-black">
+                <AccordionTrigger className="hover:no-underline px-6 py-4 bg-white/70 hover:bg-white/90 border-0 rounded-t-lg transition-colors">
+                  <span className="font-black flex items-center justify-between w-full pr-4 text-black text-xl">
                     <span>선발 타자 (1~9번)</span>
-                    <span className="text-xs text-black bg-white/50 px-2 py-1 rounded-full">
+                    <span className="text-sm text-black bg-white/50 px-3 py-1 rounded-full font-bold">
                       {lineup.batting.filter(Boolean).length}/9
                     </span>
                   </span>
@@ -795,10 +819,10 @@ export function LineupBuilder({
 
               {/* 투수 라인업 */}
               <AccordionItem value="pitchers" className="border-0">
-                <AccordionTrigger className="hover:no-underline px-4 bg-white/70 hover:bg-white/90 border-0 rounded-t-lg transition-colors">
-                  <span className="font-bold flex items-center justify-between w-full pr-4 text-black">
+                <AccordionTrigger className="hover:no-underline px-6 py-4 bg-white/70 hover:bg-white/90 border-0 rounded-t-lg transition-colors">
+                  <span className="font-black flex items-center justify-between w-full pr-4 text-black text-xl">
                     <span>투수진</span>
-                    <span className="text-xs text-black bg-white/50 px-2 py-1 rounded-full">
+                    <span className="text-sm text-black bg-white/50 px-3 py-1 rounded-full font-bold">
                       {
                         [
                           lineup.pitchers.starter,
@@ -850,10 +874,10 @@ export function LineupBuilder({
 
               {/* 벤치 */}
               <AccordionItem value="bench" className="border-0">
-                <AccordionTrigger className="hover:no-underline px-4 bg-white/70 hover:bg-white/90 border-0 rounded-t-lg transition-colors">
-                  <span className="font-bold flex items-center justify-between w-full pr-4 text-black">
+                <AccordionTrigger className="hover:no-underline px-6 py-4 bg-white/70 hover:bg-white/90 border-0 rounded-t-lg transition-colors">
+                  <span className="font-black flex items-center justify-between w-full pr-4 text-black text-xl">
                     <span>벤치 멤버</span>
-                    <span className="text-xs text-black bg-white/50 px-2 py-1 rounded-full">
+                    <span className="text-sm text-black bg-white/50 px-3 py-1 rounded-full font-bold">
                       {lineup.bench.filter(Boolean).length}/5
                     </span>
                   </span>
@@ -879,6 +903,7 @@ export function LineupBuilder({
             <div className="flex gap-2">
               <Button
                 variant="outline"
+                size="lg"
                 className="flex-1 bg-white hover:bg-gray-200 text-black border-0 font-bold"
                 onClick={handleAutoGenerate}
               >
@@ -886,6 +911,7 @@ export function LineupBuilder({
               </Button>
               <Button
                 variant="destructive"
+                size="lg"
                 className="flex-1 font-bold"
                 onClick={handleClear}
               >

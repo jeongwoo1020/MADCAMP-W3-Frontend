@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Player } from '@/app/types';
 
 interface BaseballFieldProps {
@@ -9,15 +10,65 @@ interface BaseballFieldProps {
 
 // 수비 포지션별 좌표 (SVG viewBox 0-100 기준)
 const POSITION_COORDINATES: Record<string, { x: number; y: number; label: string }> = {
-  'P': { x: 50, y: 65, label: '투수' },
-  'C': { x: 50, y: 88, label: '포수' },
-  '1B': { x: 72, y: 72, label: '1루수' },
-  '2B': { x: 60, y: 50, label: '2루수' },
-  '3B': { x: 28, y: 72, label: '3루수' },
-  'SS': { x: 40, y: 50, label: '유격수' },
-  'LF': { x: 15, y: 25, label: '좌익수' },
-  'CF': { x: 50, y: 15, label: '중견수' },
-  'RF': { x: 85, y: 25, label: '우익수' },
+  // 외야: y를 15~25 사이로 내려서 중견수(CF)가 잘리지 않게 함
+  'CF': { x: 50, y: 18, label: 'CF' },
+  'LF': { x: 20, y: 28, label: 'LF' },
+  'RF': { x: 80, y: 28, label: 'RF' },
+
+  // 내야: 중앙으로 더 모아서 입체감 형성
+  'SS': { x: 38, y: 35, label: 'SS' },
+  '2B': { x: 62, y: 35, label: '2B' },
+  'P': { x: 50, y: 55, label: 'P' },
+  '3B': { x: 25, y: 55, label: '3B' },
+  '1B': { x: 75, y: 55, label: '1B' },
+
+  // 포수: y를 85 정도로 올려서 하단 여백 확보
+  'C': { x: 50, y: 80, label: 'C' },
+};
+
+// Helper Component for Markers to handle Image Error State independently
+const PlayerMarker = ({
+  player,
+  label,
+  isPitcher,
+  size = 'md'
+}: {
+  player: Player | null,
+  label: string,
+  isPitcher?: boolean,
+  size?: 'md' | 'lg'
+}) => {
+  const [imgError, setImgError] = useState(false);
+
+  const sizeClasses = size === 'lg' ? 'w-20 h-20' : 'w-16 h-16';
+  const iconSize = size === 'lg' ? 'text-4xl' : 'text-3xl';
+  const borderClass = isPitcher ? 'border-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.4)]' : (size === 'lg' ? 'border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.6)]' : 'border-white shadow-xl');
+
+  return (
+    <div className="flex flex-col items-center group/player cursor-pointer">
+      <div className="relative">
+        <div className={`${sizeClasses} rounded-full border-2 overflow-hidden bg-slate-800 flex items-center justify-center transition-transform group-hover/player:scale-110 ${borderClass}`}>
+          {player?.image_url && !imgError ? (
+            <img
+              src={player.image_url}
+              alt={player.name}
+              className="w-full h-full object-cover"
+              onError={() => setImgError(true)}
+            />
+          ) : (
+            <span className={iconSize}>⚾</span>
+          )}
+        </div>
+
+        <div className={`absolute -bottom-2 md:-bottom-4 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-md text-white px-3 py-0.5 rounded-full border border-white/20 whitespace-nowrap min-w-[70px] text-center shadow-2xl ${size === 'lg' ? 'bg-blue-600 border-white/30' : ''}`}>
+          <p className="text-[10px] md:text-[12px] font-bold leading-none opacity-60 mb-0.5">{label}</p>
+          <p className={`${size === 'lg' ? 'text-base' : 'text-sm'} font-black leading-none tracking-tighter`}>
+            {player?.name || (isPitcher ? '준비중' : '-')}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export function BaseballField({ lineup, fieldPositions, currentBatter, currentPitcher }: BaseballFieldProps) {
@@ -34,111 +85,52 @@ export function BaseballField({ lineup, fieldPositions, currentBatter, currentPi
   };
 
   return (
-    <div className="relative w-full h-full bg-gradient-to-br from-green-700 to-green-600 rounded-lg overflow-hidden">
-      <svg viewBox="0 0 100 100" className="w-full h-full" preserveAspectRatio="xMidYMid meet">
-        {/* 외야 잔디 */}
-        <ellipse cx="50" cy="90" rx="48" ry="45" fill="#92c483" opacity="0.6" />
-        
-        {/* 내야 흙 */}
-        <path
-          d="M 50 90 L 80 60 L 50 30 L 20 60 Z"
-          fill="#c4a57b"
-          opacity="0.8"
-        />
-        
-        {/* 투수판 */}
-        <circle cx="50" cy="65" r="2" fill="#ffffff" opacity="0.9" />
-        
-        {/* 베이스 라인 */}
-        <line x1="50" y1="90" x2="80" y2="60" stroke="#ffffff" strokeWidth="0.3" opacity="0.5" />
-        <line x1="50" y1="90" x2="20" y2="60" stroke="#ffffff" strokeWidth="0.3" opacity="0.5" />
-        <line x1="80" y1="60" x2="50" y2="30" stroke="#ffffff" strokeWidth="0.3" opacity="0.5" />
-        <line x1="20" y1="60" x2="50" y2="30" stroke="#ffffff" strokeWidth="0.3" opacity="0.5" />
-        
-        {/* 1루 베이스 */}
-        <rect
-          x="78"
-          y="58"
-          width="4"
-          height="4"
-          fill="#ffffff"
-          transform="rotate(45 80 60)"
-        />
-        
-        {/* 2루 베이스 */}
-        <rect
-          x="48"
-          y="28"
-          width="4"
-          height="4"
-          fill="#ffffff"
-          transform="rotate(45 50 30)"
-        />
-        
-        {/* 3루 베이스 */}
-        <rect
-          x="18"
-          y="58"
-          width="4"
-          height="4"
-          fill="#ffffff"
-          transform="rotate(45 20 60)"
-        />
-        
-        {/* 홈 베이스 */}
-        <path
-          d="M 50 90 L 48 88 L 48 86 L 52 86 L 52 88 Z"
-          fill="#ffffff"
-        />
-      </svg>
-      
-      {/* 수비 포지션별 선수 배치 */}
+    <div className="relative w-full aspect-[4/3] bg-[#2d5a27] rounded-2xl overflow-hidden border-4 border-[#1a3a17] shadow-2xl group">
+      {/* 1. 그라운드 배경: 홈에서 외야로 멀어지는 입체적인 그라데이션 */}
+      <div
+        className="absolute inset-0 transition-opacity duration-1000"
+        style={{
+          backgroundImage: 'radial-gradient(circle at 50% 100%, #4a8c44 0%, #2d5a27 99%)',
+        }}
+      />
+
+      {/* 2. 내야 흙 다이아몬드 및 베이스라인 (원근감 표현) */}
+      <div className="absolute bottom-[12%] left-1/2 -translate-x-1/2 w-[75%] h-[80%] opacity-40 pointer-events-none">
+        <svg viewBox="0 0 100 100" className="w-full h-full">
+          <path d="M 50 95 L 88 58 L 50 22 L 12 58 Z" fill="#c4a57b" />
+          <path
+            d="M 50 95 L 88 58 L 50 22 L 12 58 Z"
+            fill="none"
+            stroke="white"
+            strokeWidth="0.6"
+            strokeDasharray="2"
+          />
+        </svg>
+      </div>
+
+      {/* 3. 홈플레이트 디테일 */}
+      <div className="absolute left-1/2 bottom-[5%] -translate-x-1/2 w-4 h-4 bg-white/90 rotate-45 border-2 border-slate-300 shadow-sm z-20" />
+
+      {/* 4. 수비수 및 투수 마커 배치 */}
       {Object.entries(POSITION_COORDINATES).map(([position, coords]) => {
+        // 투수(P)는 currentPitcher를, 나머지는 라인업에서 해당 포지션 선수를 가져옴
         const player = position === 'P' ? currentPitcher : getPlayerByPosition(position);
-        
         if (!player && position === 'DH') return null;
-        
+
         return (
           <div
             key={position}
-            className="absolute transform -translate-x-1/2 -translate-y-1/2"
-            style={{
-              left: `${coords.x}%`,
-              top: `${coords.y}%`,
-            }}
+            className="absolute transform -translate-x-1/2 -translate-y-1/2 z-30 transition-all duration-500"
+            style={{ left: `${coords.x}%`, top: `${coords.y}%` }}
           >
-            <div className="flex flex-col items-center gap-1">
-              <div className="w-10 h-10 rounded-full bg-slate-800 border-2 border-white flex items-center justify-center text-white text-xs font-bold shadow-lg">
-                {player?.name.slice(0, 2) || position}
-              </div>
-              <div className="bg-slate-800/80 text-white text-[10px] px-2 py-0.5 rounded-full whitespace-nowrap">
-                {coords.label}
-              </div>
-              {player && (
-                <div className="bg-white/90 text-slate-800 text-[9px] px-1.5 py-0.5 rounded font-bold">
-                  {player.name}
-                </div>
-              )}
-            </div>
+            <PlayerMarker player={player} label={coords.label} isPitcher={position === 'P'} />
           </div>
         );
       })}
-      
-      {/* 타자 위치 */}
-      <div
-        className="absolute transform -translate-x-1/2 -translate-y-1/2"
-        style={{ left: '50%', top: '95%' }}
-      >
-        <div className="flex flex-col items-center gap-1">
-          <div className="w-12 h-12 rounded-full bg-blue-600 border-2 border-white flex items-center justify-center text-white text-xs font-bold shadow-lg">
-            {currentBatter?.name.slice(0, 2)}
-          </div>
-          {currentBatter && (
-            <div className="bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded font-bold">
-              {currentBatter.name}
-            </div>
-          )}
-        </div>
+
+      {/* 5. 현재 타자 마커 (홈플레이트 좌측 타석 배치) */}
+      <div className="absolute left-[34%] bottom-[5%] z-40 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <PlayerMarker player={currentBatter} label="BATTER" size="lg" />
       </div>
     </div>
   );

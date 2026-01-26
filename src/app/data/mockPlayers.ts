@@ -20,10 +20,10 @@ function calculateSalary(player: Omit<Player, 'salary'>): number {
     // ERA가 낮을수록 높은 연봉 (1.5 ~ 6.0 범위)
     const salaryBase = Math.max(10, Math.min(100, (6.0 - era) * 20));
     // 역할에 따른 가중치
-    const roleMultiplier = 
+    const roleMultiplier =
       player.pitcherRole === 'starter' ? 1.5 :
-      player.pitcherRole === 'closer' ? 1.3 :
-      1.0;
+        player.pitcherRole === 'closer' ? 1.3 :
+          1.0;
     return Math.round(salaryBase * roleMultiplier);
   } else {
     const ops = player.stats.ops || 0.7;
@@ -42,6 +42,7 @@ const RAW_PLAYERS: Omit<Player, 'salary'>[] = [
     position: '3루수',
     stats: { avg: 0.312, obp: 0.398, slg: 0.578, ops: 0.976, hr: 35, rbi: 108 },
     recentForm: 9,
+    image_url: 'https://i.namu.wiki/i/G-7jXzXz5Xz5Xz5Xz5Xz5.jpg', // Placeholder or removed if not found
   },
   {
     id: 'ssg-2',
@@ -50,6 +51,7 @@ const RAW_PLAYERS: Omit<Player, 'salary'>[] = [
     position: '외야수',
     stats: { avg: 0.285, obp: 0.389, slg: 0.493, ops: 0.882, hr: 22, rbi: 76 },
     recentForm: 8,
+    image_url: '',
   },
   {
     id: 'ssg-3',
@@ -58,6 +60,7 @@ const RAW_PLAYERS: Omit<Player, 'salary'>[] = [
     position: '유격수',
     stats: { avg: 0.298, obp: 0.362, slg: 0.445, ops: 0.807, hr: 12, rbi: 65 },
     recentForm: 7,
+    image_url: '',
   },
   {
     id: 'ssg-4',
@@ -67,6 +70,7 @@ const RAW_PLAYERS: Omit<Player, 'salary'>[] = [
     pitcherRole: 'starter',
     stats: { era: 2.98, whip: 1.15, k: 142 },
     recentForm: 8,
+    image_url: '',
   },
   {
     id: 'ssg-4-1',
@@ -76,6 +80,7 @@ const RAW_PLAYERS: Omit<Player, 'salary'>[] = [
     pitcherRole: 'middle',
     stats: { era: 3.45, whip: 1.28, k: 68 },
     recentForm: 7,
+    image_url: '',
   },
   {
     id: 'ssg-4-2',
@@ -85,6 +90,7 @@ const RAW_PLAYERS: Omit<Player, 'salary'>[] = [
     pitcherRole: 'closer',
     stats: { era: 2.12, whip: 0.98, k: 82 },
     recentForm: 9,
+    image_url: '',
   },
   {
     id: 'ssg-5',
@@ -93,6 +99,7 @@ const RAW_PLAYERS: Omit<Player, 'salary'>[] = [
     position: '1루수',
     stats: { avg: 0.289, obp: 0.358, slg: 0.467, ops: 0.825, hr: 18, rbi: 72 },
     recentForm: 7,
+    image_url: '',
   },
   // LG 트윈스
   {
@@ -102,6 +109,7 @@ const RAW_PLAYERS: Omit<Player, 'salary'>[] = [
     position: '외야수',
     stats: { avg: 0.325, obp: 0.412, slg: 0.532, ops: 0.944, hr: 24, rbi: 94 },
     recentForm: 9,
+    image_url: 'https://img.khan.co.kr/news/2023/11/08/l_2023110801000854400067641.jpg',
   },
   {
     id: 'lg-2',

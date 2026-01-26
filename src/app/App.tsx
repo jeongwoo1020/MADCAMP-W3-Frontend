@@ -43,36 +43,44 @@ function AppRoutes() {
 
   // 상대방 라인업 자동 생성 (랜덤 매칭/AI용)
   const generateOpponentLineup = (): Lineup => {
-    const availablePlayers = MOCK_PLAYERS.filter(
-      (p) => p.position !== "투수",
-    );
-    const availablePitchers = MOCK_PLAYERS.filter(
-      (p) => p.position === "투수",
-    );
+    // 1. 투수와 타자 분류
+    const availableBatters = MOCK_PLAYERS.filter((p) => p.position !== "투수");
+    const availablePitchers = MOCK_PLAYERS.filter((p) => p.position === "투수");
 
-    const shuffled = [...availablePlayers].sort(
-      () => Math.random() - 0.5,
-    );
-    const batting = shuffled.slice(0, 9);
-    const bench = shuffled.slice(9, 14);
+    // 2. 랜덤 셔플
+    const shuffledBatters = [...availableBatters].sort(() => Math.random() - 0.5);
 
-    const starters = availablePitchers.filter(
-      (p) => p.pitcherRole === "starter",
-    );
-    const middles = availablePitchers.filter(
-      (p) => p.pitcherRole === "middle",
-    );
-    const closers = availablePitchers.filter(
-      (p) => p.pitcherRole === "closer",
-    );
+    // 3. 타순 구성 (9명)
+    const batting = shuffledBatters.slice(0, 9);
+    const bench = shuffledBatters.slice(9, 14);
 
-    const starter =
-      starters[Math.floor(Math.random() * starters.length)];
-    const middle = middles
-      .sort(() => Math.random() - 0.5)
-      .slice(0, 5);
-    const closer =
-      closers[Math.floor(Math.random() * closers.length)];
+    // 4. 투수진 구성
+    const starters = availablePitchers.filter((p) => p.pitcherRole === "starter");
+    const middles = availablePitchers.filter((p) => p.pitcherRole === "middle");
+    const closers = availablePitchers.filter((p) => p.pitcherRole === "closer");
+
+    const starter = starters[Math.floor(Math.random() * starters.length)] || availablePitchers[0];
+    const middle = middles.length > 0 ? middles.slice(0, 5) : availablePitchers.slice(1, 6);
+    const closer = closers[Math.floor(Math.random() * closers.length)] || availablePitchers[availablePitchers.length - 1];
+
+    // 5. 수비 포지션 할당 (한글 -> 영문 변환)
+    let ofCount = 0;
+    const fieldPositions = batting.map((p) => {
+      if (!p) return null;
+
+      switch (p.position) {
+        case '포수': return 'C';
+        case '1루수': return '1B';
+        case '2루수': return '2B';
+        case '3루수': return '3B';
+        case '유격수': return 'SS';
+        case '외야수':
+          const pos = ['LF', 'CF', 'RF'][ofCount % 3];
+          ofCount++;
+          return pos;
+        default: return null; // 지명타자(DH) 등
+      }
+    });
 
     return {
       batting,
@@ -82,7 +90,7 @@ function AppRoutes() {
         closer,
       },
       bench,
-      fieldPositions: Array(9).fill(null),
+      fieldPositions,
       hasDH: false,
     };
   };
