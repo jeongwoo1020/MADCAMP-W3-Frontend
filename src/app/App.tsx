@@ -22,8 +22,6 @@ function AppRoutes() {
   const navigate = useNavigate();
   const [user, setUser] = useState<{
     name: string;
-    email: string;
-    profileImage: string;
   } | null>(null);
   const [gameMode, setGameMode] = useState<
     "friend" | "invite" | "random" | null
