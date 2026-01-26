@@ -45,6 +45,98 @@ interface PitchInfo {
   location: string;
 }
 
+// ⭐ 프리미엄 카드 컴포넌트 추가
+const SimulationPlayerCard = ({
+  player,
+  onClick,
+  type = 'hitter',
+  theme
+}: {
+  player: any, // ⭐ Type casting to any for flexibility with stats property
+  onClick: () => void,
+  type?: 'hitter' | 'pitcher',
+  theme: any
+}) => {
+  const primaryStat = type === 'hitter'
+    ? (player.stats?.avg?.toFixed(3) || player.avg?.toFixed(3) || '.000')
+    : (player.stats?.era?.toFixed(2) || player.era?.toFixed(2) || '0.00');
+
+  const statLabel = type === 'hitter' ? 'AVG' : 'ERA';
+
+  return (
+    <div
+      onClick={onClick}
+      className="relative w-40 h-64 cursor-pointer group transition-all hover:scale-105 active:scale-95"
+    >
+      {/* 카드 배경 프레임 (스포츠 카드 스타일) */}
+      <div
+        className="absolute inset-0 bg-slate-900 border-2 rounded-lg shadow-2xl overflow-hidden"
+        style={{ borderColor: theme?.primary || '#ccc' }}
+      >
+        {/* 상단 장식 그라데이션 */}
+        <div
+          className="absolute top-0 left-0 w-full h-1/2 opacity-30 bg-gradient-to-b"
+          style={{ backgroundImage: `linear-gradient(to bottom, ${theme?.primary || '#3b82f6'}, transparent)` }}
+        />
+
+        {/* 배경 로고 패턴 (희미하게) */}
+        <div className="absolute inset-0 flex items-center justify-center opacity-5 pointer-events-none">
+          <span className="text-8xl">⚾</span>
+        </div>
+
+        {/* 상단 정보 영역 */}
+        <div className="relative p-3 flex flex-col items-center">
+          <div className="flex w-full justify-between items-start">
+            <div className="flex flex-col items-center">
+              <span className="text-2xl font-black text-white leading-none">{primaryStat.replace('0.', '.')}</span>
+              <span className="text-[10px] font-bold text-gray-400 mt-0.5">{statLabel}</span>
+            </div>
+            <Badge className="bg-white/10 text-[10px] px-1.5 py-0 border-0 text-white">LIVE</Badge>
+          </div>
+        </div>
+
+        {/* 선수 이미지 영역 */}
+        <div className="absolute inset-0 mt-8 flex items-center justify-center">
+          {player.image_url ? (
+            <img
+              src={player.image_url}
+              alt={player.name}
+              className="w-full h-full object-cover object-top mask-image-gradient"
+              style={{ maskImage: 'linear-gradient(to bottom, black 70%, transparent 100%)' }}
+            />
+          ) : (
+            <span className="text-6xl grayscale opacity-20">👤</span>
+          )}
+        </div>
+
+        {/* 하단 띠 & 이름 */}
+        <div className="absolute bottom-0 left-0 w-full bg-white p-2">
+          <div className="text-center">
+            <div className="text-[10px] font-bold text-gray-400 leading-none mb-1">
+              {type === 'hitter' ? (player as Hitter).position : (player as Pitcher).pitcherRole}
+            </div>
+            <div className="text-sm font-black text-gray-900 truncate">
+              {player.name}
+            </div>
+          </div>
+
+          {/* 팀 컬러 하단 바 */}
+          <div
+            className="absolute bottom-0 left-0 w-full h-1"
+            style={{ backgroundColor: theme?.primary }}
+          />
+        </div>
+      </div>
+
+      {/* 카드 테두리 글로우 효과 (호버 시) */}
+      <div
+        className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-40 transition-opacity blur-md -z-10"
+        style={{ backgroundColor: theme?.primary }}
+      />
+    </div>
+  );
+};
+
 export function SimulationGame({
   myLineup,
   opponentLineup,
@@ -128,7 +220,7 @@ export function SimulationGame({
     setCurrentPitch(pitch);
 
     const batterOBP = currentBatter.stats.obp || 0.3;
-    const batterSLG = currentBatter.stats.slg || 0.4;
+    const batterAVG = (currentBatter as any).stats?.avg || (currentBatter as Hitter).avg || 0.250;
     const pitcherWHIP = currentPitcher.stats.whip || 1.2;
 
     const baseSuccess = batterOBP * (1 / pitcherWHIP);
@@ -512,7 +604,7 @@ export function SimulationGame({
                   {/* Logo */}
                   <div className="w-12 h-12 relative flex items-center justify-center">
                     <img
-                      src={`/assets/logos/${isHome ? opponentTeam : myTeam}.png`}
+                      src={`/assets/logos/${(isHome ? opponentTeam : myTeam).trim()}.png`}
                       alt="Away Team Logo"
                       className="w-full h-full object-contain drop-shadow-sm"
                       onError={(e) => {
@@ -520,8 +612,9 @@ export function SimulationGame({
                         e.currentTarget.nextElementSibling?.classList.remove('hidden');
                       }}
                     />
-                    <div className="hidden w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-400">
-                      {isHome ? opponentTeam?.[0] : myTeam?.[0]}
+                    <div className="hidden w-10 h-10 rounded-full flex items-center justify-center text-lg font-black text-white"
+                      style={{ backgroundColor: (isHome ? opponentTheme : myTheme)?.primary || '#94a3b8' }}>
+                      {(isHome ? opponentTeam : myTeam)?.trim()[0]}
                     </div>
                   </div>
                   {/* Name */}
@@ -543,7 +636,7 @@ export function SimulationGame({
                   {/* Logo */}
                   <div className="w-12 h-12 relative flex items-center justify-center">
                     <img
-                      src={`/assets/logos/${isHome ? myTeam : opponentTeam}.png`}
+                      src={`/assets/logos/${(isHome ? myTeam : opponentTeam).trim()}.png`}
                       alt="Home Team Logo"
                       className="w-full h-full object-contain drop-shadow-sm"
                       onError={(e) => {
@@ -551,8 +644,9 @@ export function SimulationGame({
                         e.currentTarget.nextElementSibling?.classList.remove('hidden');
                       }}
                     />
-                    <div className="hidden w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-400">
-                      {isHome ? myTeam?.[0] : opponentTeam?.[0]}
+                    <div className="hidden w-10 h-10 rounded-full flex items-center justify-center text-lg font-black text-white"
+                      style={{ backgroundColor: (isHome ? myTheme : opponentTheme)?.primary || '#94a3b8' }}>
+                      {(isHome ? myTeam : opponentTeam)?.trim()[0]}
                     </div>
                   </div>
                   {/* Name */}
@@ -706,18 +800,18 @@ export function SimulationGame({
                       <h4 className="font-extrabold text-lg text-black mb-3 flex items-center gap-2">
                         <div className="w-6 h-6 relative flex items-center justify-center">
                           <img
-                            src={`/assets/logos/${myTeam}.png`}
-                            alt={myTeam}
+                            src={`/assets/logos/${myTeam.trim()}.png`}
+                            alt="My Team Logo"
                             className="w-full h-full object-contain"
                             onError={(e) => {
                               e.currentTarget.style.display = 'none';
                               e.currentTarget.nextElementSibling?.classList.remove('hidden');
                             }}
                           />
-                          <div
-                            className="hidden w-4 h-4 rounded-full"
-                            style={{ backgroundColor: myTheme?.primary }}
-                          />
+                          <div className="hidden w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold text-white"
+                            style={{ backgroundColor: myTheme?.primary || '#94a3b8' }}>
+                            {myTeam?.[0]}
+                          </div>
                         </div>
                         {myTeam}
                       </h4>
@@ -736,18 +830,18 @@ export function SimulationGame({
                       <h4 className="font-extrabold text-lg text-black mb-3 flex items-center gap-2">
                         <div className="w-6 h-6 relative flex items-center justify-center">
                           <img
-                            src={`/assets/logos/${opponentTeam}.png`}
-                            alt={opponentTeam}
+                            src={`/assets/logos/${opponentTeam.trim()}.png`}
+                            alt="Opponent Team Logo"
                             className="w-full h-full object-contain"
                             onError={(e) => {
                               e.currentTarget.style.display = 'none';
                               e.currentTarget.nextElementSibling?.classList.remove('hidden');
                             }}
                           />
-                          <div
-                            className="hidden w-4 h-4 rounded-full"
-                            style={{ backgroundColor: opponentTheme?.primary }}
-                          />
+                          <div className="hidden w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold text-white"
+                            style={{ backgroundColor: opponentTheme?.primary || '#94a3b8' }}>
+                            {opponentTeam?.[0]}
+                          </div>
                         </div>
                         {opponentTeam}
                       </h4>
@@ -844,35 +938,51 @@ export function SimulationGame({
 
       {/* Management Dialogs */}
       <Dialog open={showPitcherDialog} onOpenChange={setShowPitcherDialog}>
-        <DialogContent>
+        <DialogContent className="max-w-5xl bg-slate-950/95 border-white/10 backdrop-blur-xl">
           <DialogHeader>
-            <DialogTitle>투수 교체</DialogTitle>
-            <DialogDescription>교체할 투수를 선택하세요</DialogDescription>
+            <DialogTitle className="text-2xl font-black text-white">투수 교체</DialogTitle>
+            <DialogDescription className="text-gray-400 font-bold">교체할 투수를 선택하세요 (BULLPEN)</DialogDescription>
           </DialogHeader>
-          <div className="space-y-2">
+          <div className="flex overflow-x-auto gap-6 p-6 pb-8 scrollbar-hide">
             {myLineup.pitchers.middle.map((pitcher, idx) =>
               pitcher ? (
-                <Button key={idx} variant="outline" className="w-full justify-start" onClick={() => handlePitcherChange(pitcher)}>
-                  {pitcher.name} - ERA: {pitcher.stats.era.toFixed(2)}
-                </Button>
+                <SimulationPlayerCard
+                  key={idx}
+                  player={pitcher}
+                  type="pitcher"
+                  theme={myTheme}
+                  onClick={() => handlePitcherChange(pitcher)}
+                />
               ) : null
+            )}
+            {myLineup.pitchers.closer && (
+              <SimulationPlayerCard
+                player={myLineup.pitchers.closer}
+                type="pitcher"
+                theme={myTheme}
+                onClick={() => handlePitcherChange(myLineup.pitchers.closer!)}
+              />
             )}
           </div>
         </DialogContent>
       </Dialog>
 
       <Dialog open={showPinchHitterDialog} onOpenChange={setShowPinchHitterDialog}>
-        <DialogContent>
+        <DialogContent className="max-w-5xl bg-slate-950/95 border-white/10 backdrop-blur-xl">
           <DialogHeader>
-            <DialogTitle>대타</DialogTitle>
-            <DialogDescription>대타를 선택하세요</DialogDescription>
+            <DialogTitle className="text-2xl font-black text-white">대타 투입</DialogTitle>
+            <DialogDescription className="text-gray-400 font-bold">교체할 대타를 선택하세요 (BENCH)</DialogDescription>
           </DialogHeader>
-          <div className="space-y-2">
+          <div className="flex overflow-x-auto gap-6 p-6 pb-8 scrollbar-hide">
             {myLineup.bench.map((player, idx) =>
               player ? (
-                <Button key={idx} variant="outline" className="w-full justify-start" onClick={() => handlePinchHitter(player)}>
-                  {player.name} - AVG: {player.stats.avg.toFixed(3)}
-                </Button>
+                <SimulationPlayerCard
+                  key={idx}
+                  player={player}
+                  type="hitter"
+                  theme={myTheme}
+                  onClick={() => handlePinchHitter(player)}
+                />
               ) : null
             )}
           </div>
@@ -880,17 +990,21 @@ export function SimulationGame({
       </Dialog>
 
       <Dialog open={showPinchRunnerDialog} onOpenChange={setShowPinchRunnerDialog}>
-        <DialogContent>
+        <DialogContent className="max-w-5xl bg-slate-950/95 border-white/10 backdrop-blur-xl">
           <DialogHeader>
-            <DialogTitle>대주자</DialogTitle>
-            <DialogDescription>대주자를 선택하세요</DialogDescription>
+            <DialogTitle className="text-2xl font-black text-white">대주자 투입</DialogTitle>
+            <DialogDescription className="text-gray-400 font-bold">교체할 대주자를 선택하세요 (BENCH)</DialogDescription>
           </DialogHeader>
-          <div className="space-y-2">
+          <div className="flex overflow-x-auto gap-6 p-6 pb-8 scrollbar-hide">
             {myLineup.bench.map((player, idx) =>
               player ? (
-                <Button key={idx} variant="outline" className="w-full justify-start" onClick={() => handlePinchRunner(player, selectedRunnerBase as 0 | 1 | 2)}>
-                  {player.name}
-                </Button>
+                <SimulationPlayerCard
+                  key={idx}
+                  player={player}
+                  type="hitter"
+                  theme={myTheme}
+                  onClick={() => handlePinchRunner(player, selectedRunnerBase as 0 | 1 | 2)}
+                />
               ) : null
             )}
           </div>

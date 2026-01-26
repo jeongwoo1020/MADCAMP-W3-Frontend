@@ -636,7 +636,7 @@ export function LineupBuilder({
                                 {/* Team Logo */}
                                 <div className="w-16 h-16 flex-shrink-0 relative flex items-center justify-center">
                                   <img
-                                    src={`/assets/logos/${team}.png`}
+                                    src={`/assets/logos/${team.trim()}.png`}
                                     alt={`${team} logo`}
                                     className="w-full h-full object-contain drop-shadow-md"
                                     onError={(e) => {
@@ -646,11 +646,13 @@ export function LineupBuilder({
                                   />
                                   {/* Fallback Circle */}
                                   <div
-                                    className="hidden w-14 h-14 rounded-full ring-4 ring-black/10 shadow-inner"
+                                    className="hidden w-14 h-14 rounded-full ring-4 ring-black/10 shadow-inner flex items-center justify-center text-white font-black text-xl"
                                     style={{
                                       backgroundColor: theme.primary,
                                     }}
-                                  />
+                                  >
+                                    {team.trim()[0]}
+                                  </div>
                                 </div>
 
                                 <span className="font-black text-2xl tracking-tight">
@@ -721,7 +723,7 @@ export function LineupBuilder({
                                 {/* Team Logo */}
                                 <div className="w-16 h-16 flex-shrink-0 relative flex items-center justify-center">
                                   <img
-                                    src={`/assets/logos/${team}.png`}
+                                    src={`/assets/logos/${team.trim()}.png`}
                                     alt={`${team} logo`}
                                     className="w-full h-full object-contain drop-shadow-md"
                                     onError={(e) => {
@@ -731,11 +733,13 @@ export function LineupBuilder({
                                   />
                                   {/* Fallback Circle */}
                                   <div
-                                    className="hidden w-14 h-14 rounded-full ring-4 ring-black/10 shadow-inner"
+                                    className="hidden w-14 h-14 rounded-full ring-4 ring-black/10 shadow-inner flex items-center justify-center text-white font-black text-xl"
                                     style={{
                                       backgroundColor: theme.primary,
                                     }}
-                                  />
+                                  >
+                                    {team.trim()[0]}
+                                  </div>
                                 </div>
 
                                 <span className="font-black text-2xl tracking-tight">
