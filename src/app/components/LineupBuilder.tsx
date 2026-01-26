@@ -28,7 +28,7 @@ import { BenchSlot } from "./lineup/BenchSlot";
 
 import { fetchAndAdaptPlayers } from "@/app/lib/playerAdapter";
 
-const MAX_CREDITS = 2000; // 최대 크레딧 (테스트용)
+const MAX_CREDITS = 5000; // 최대 크레딧 (테스트용)
 
 interface LineupBuilderProps {
   onLineupComplete: (lineup: Lineup) => void;
