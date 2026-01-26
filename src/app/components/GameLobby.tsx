@@ -3,7 +3,9 @@ import { Card } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/components/ui/tabs';
-import { Users, Copy, Shuffle, ArrowRight } from 'lucide-react';
+import { Users, Copy, Shuffle, ArrowRight, Loader2, XCircle } from 'lucide-react';
+import { matchmakingService } from '@/app/lib/matchmaking';
+import { useRef, useEffect } from 'react';
 
 interface GameLobbyProps {
   onCreateGame: (mode: 'friend' | 'invite' | 'random') => void;
@@ -14,6 +16,11 @@ export function GameLobby({ onCreateGame, onJoinGame }: GameLobbyProps) {
   const [inviteCode, setInviteCode] = useState('');
   const [generatedCode, setGeneratedCode] = useState('');
   const [playerName, setPlayerName] = useState('');
+
+  // 매칭 관련 상태
+  const [isMatching, setIsMatching] = useState(false);
+  const [matchStatus, setMatchStatus] = useState("IDLE");
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
   // 초대 코드 생성 /api/rooms POST
   const handleCreateWithCode = async () => {
@@ -44,6 +51,67 @@ export function GameLobby({ onCreateGame, onJoinGame }: GameLobbyProps) {
       alert('6자리 초대 코드를 입력해주세요.');
     }
   };
+
+
+  const handleRandomMatch = async () => {
+    try {
+      setIsMatching(true);
+      setMatchStatus("WAITING");
+
+      const userId = Number(localStorage.getItem("userId") || "0");
+      if (userId === 0) {
+        alert("로그인이 필요합니다.");
+        setIsMatching(false);
+        return;
+      }
+
+      await matchmakingService.joinQueue(userId);
+
+      // 폴링 시작
+      pollingRef.current = setInterval(async () => {
+        try {
+          const res = await matchmakingService.checkStatus(userId);
+          console.log("Match Status:", res);
+
+          if (res.status === "MATCHED") {
+            clearInterval(pollingRef.current!);
+            setMatchStatus("MATCHED");
+
+            // 매칭 성공 시 라인업 화면으로 이동
+            setTimeout(() => {
+              onCreateGame('random');
+            }, 1000);
+          }
+        } catch (err) {
+          console.error("Polling error:", err);
+        }
+      }, 1000);
+
+    } catch (error) {
+      console.error("Join Queue failed:", error);
+      alert("매칭 신청 실패!");
+      setIsMatching(false);
+    }
+  };
+
+  const cancelMatching = async () => {
+    if (pollingRef.current) clearInterval(pollingRef.current);
+    try {
+      const userId = Number(localStorage.getItem("userId") || "0");
+      await matchmakingService.cancelQueue(userId);
+    } catch (e) {
+      console.error(e);
+    }
+    setIsMatching(false);
+    setMatchStatus("IDLE");
+  };
+
+  // 컴포넌트 언마운트 시 폴링 정리
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    }
+  }, []);
 
   return (
     <div
@@ -164,13 +232,31 @@ export function GameLobby({ onCreateGame, onJoinGame }: GameLobbyProps) {
                         <p className="text-sm text-gray-400 mb-3">
                           실력이 비슷한 상대와 자동 매칭됩니다
                         </p>
-                        <Button
-                          onClick={() => onCreateGame('random')}
-                          className="w-full bg-white hover:bg-gray-200 text-black border-0 font-bold shadow-lg shadow-voltage-blue/20"
-                          disabled={!playerName}
-                        >
-                          매칭 시작하기 <ArrowRight className="w-4 h-4 ml-2" />
-                        </Button>
+
+                        {!isMatching ? (
+                          <Button
+                            onClick={() => handleRandomMatch()}
+                            className="w-full bg-white hover:bg-gray-200 text-black border-0 font-bold shadow-lg shadow-voltage-blue/20"
+                            disabled={!playerName}
+                          >
+                            매칭 시작하기 <ArrowRight className="w-4 h-4 ml-2" />
+                          </Button>
+                        ) : (
+                          <div className="flex flex-col gap-2">
+                            <div className="flex items-center justify-center gap-2 text-white font-bold animate-pulse py-2">
+                              <Loader2 className="w-5 h-5 animate-spin text-cyber-yellow" />
+                              <span>{matchStatus === "MATCHED" ? "매칭 성공!" : "상대방 찾는 중..."}</span>
+                            </div>
+                            <Button
+                              variant="destructive"
+                              onClick={cancelMatching}
+                              size="sm"
+                              className="w-full"
+                            >
+                              <XCircle className="w-4 h-4 mr-2" /> 취소
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </Card>
