@@ -23,6 +23,7 @@ function AppRoutes() {
   const [user, setUser] = useState<{
     name: string;
   } | null>(null);
+  const [matchId, setMatchId] = useState<string | null>(null); // ⭐ Match ID 추가
   const [gameMode, setGameMode] = useState<
     "friend" | "invite" | "random" | null
   >(null);
@@ -95,11 +96,16 @@ function AppRoutes() {
 
   const handleCreateGame = (
     mode: "friend" | "invite" | "random",
+    newMatchId?: string
   ) => {
     setGameMode(mode);
-    if (mode === "random") {
-      const opponent = generateOpponentLineup();
-      setOpponentLineup(opponent);
+    if (newMatchId) setMatchId(newMatchId);
+
+    if (mode === "random" || mode === "friend") {
+      // 랜덤 매칭은 로비에서 이미 매칭됨 (newMatchId가 전달됨)
+      // 친구 모드도 바로 라인업으로
+      // const opponent = generateOpponentLineup();
+      // setOpponentLineup(opponent);
     }
     navigate("/lineup");
   };
@@ -107,13 +113,38 @@ function AppRoutes() {
   const handleJoinGame = (inviteCode: string) => {
     console.log("Join game with code:", inviteCode);
     setGameMode("invite");
+    setMatchId(inviteCode);
     navigate("/lineup");
   };
 
-  const handleMyLineupComplete = (lineup: Lineup) => {
+  const handleMyLineupComplete = async (lineup: Lineup) => {
     setMyLineup(lineup);
 
-    if (gameMode === "random" && opponentLineup) {
+    // ⭐ 백엔드에 라인업 저장
+    if (matchId) {
+      try {
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+        await fetch(`${apiUrl}/api/team/lineup`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            matchId: matchId,
+            activeLineup: lineup
+          })
+        });
+        console.log("Lineup saved to backend for match:", matchId);
+      } catch (e) {
+        console.error("Failed to save lineup:", e);
+      }
+    }
+
+    if (gameMode === "random") {
+      // 랜덤 모드는 상대방이 이미 있다고 가정 (혹은 기다림)
+      // 여기선 일단 AI로 채움 (나중에 백엔드에서 받아와야 함)
+      const opponent = generateOpponentLineup();
+      setOpponentLineup(opponent);
       navigate("/setup");
     } else {
       setTimeout(() => {
