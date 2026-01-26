@@ -76,7 +76,9 @@ function getTeamLogoUrl(teamName: string): string {
 
 export async function fetchAndAdaptPlayers(): Promise<{ batters: Player[], pitchers: Player[] }> {
     try {
-        let apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+        // @ts-ignore
+        let apiUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:8080';
+
         if (apiUrl.includes('host.docker.internal')) {
             apiUrl = apiUrl.replace('host.docker.internal', 'localhost');
         }
@@ -115,15 +117,13 @@ export async function fetchAndAdaptPlayers(): Promise<{ batters: Player[], pitch
             };
 
             const player: Player = {
-                id: String(b.id), // ID 문자열 변환
+                id: b.id, // Number로 유지
                 name: b.name,
                 team: b.team,
                 position: b.position,
                 image_url: imageUrl,
-                credit: 0, // 나중에 계산
-                salary: 0, // 나중에 계산
-
-                // Hitter 인터페이스 필드들 (필수)
+                credit: 0,
+                salary: 0,
                 avg: b.avg,
                 pa: b.pa,
                 hit: b.hit,
@@ -138,12 +138,8 @@ export async function fetchAndAdaptPlayers(): Promise<{ batters: Player[], pitch
                 cs: b.cs,
                 error: b.error,
                 fpct: b.fpct,
-                speed: 10 + b.sb * 2, // 가상 계산
-
-                // Player 타입 호환용
+                speed: 10 + b.sb * 2,
                 stats: stats,
-
-                // Pitcher 필수 필드 (Default 0/null)
                 ip: 0, h: 0, hr: 0, bb: 0, so: 0, go: b.go, ao: b.ao, max_pitch_count: 0
             };
 
@@ -179,15 +175,13 @@ export async function fetchAndAdaptPlayers(): Promise<{ batters: Player[], pitch
             };
 
             const player: Player = {
-                id: String(p.id),
+                id: p.id,
                 name: p.name,
                 team: p.team,
                 position: '투수',
                 image_url: imageUrl,
                 credit: 0,
                 salary: 0,
-
-                // Pitcher 인터페이스 필드
                 pitcherRole: role,
                 ip: p.ip,
                 h: p.h,
@@ -198,11 +192,7 @@ export async function fetchAndAdaptPlayers(): Promise<{ batters: Player[], pitch
                 ao: p.ao,
                 error: p.error,
                 max_pitch_count: role === 'starter' ? 100 : (role === 'middle' ? 50 : 30),
-
-                // Hitter 필수 필드 (Default 0/null)
                 avg: 0, pa: 0, hit: 0, doubleHit: 0, tripleHit: 0, homeRun: 0, strikeOut: 0, walk: 0, hbp: p.hbp, ops: 0, sb: 0, cs: 0, fpct: p.fpct, speed: 0,
-
-                // Player 타입 호환용
                 stats: stats
             };
 

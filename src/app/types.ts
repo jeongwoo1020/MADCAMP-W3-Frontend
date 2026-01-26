@@ -105,7 +105,7 @@ export interface MatchInfo {
   score: { home: number; away: number }; // JSON
   inning: number;
   is_top: boolean; // true: 초, false: 말
-  runners: (number | null)[]; // [1루 선수id, 2루 선수id, 3루 선수id]
+  runners: (Hitter | null)[]; // [1루, 2루, 3루] 선수 객체 또는 null
   active_lineup: {
     // JSON: 현 필드 10명 + 벤치
     batting: (Hitter | null)[];
@@ -134,13 +134,13 @@ export interface MatchRecord {
 // [6] 타석 결과 (이벤트 데이터)
 export interface AtBatResult {
   type:
-    | "single"
-    | "double"
-    | "triple"
-    | "homerun"
-    | "out"
-    | "walk"
-    | "strikeout";
+  | "single"
+  | "double"
+  | "triple"
+  | "homerun"
+  | "out"
+  | "walk"
+  | "strikeout";
   description: string;
 }
 
