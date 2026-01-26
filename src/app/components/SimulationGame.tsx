@@ -27,6 +27,7 @@ interface SimulationGameProps {
   opponentLineup: Lineup;
   stadium: Stadium;
   isHome: boolean;
+  matchId: string; // ⭐ 추가
   onGameEnd: (finalScore: { home: number; away: number }, history: MatchRecord[]) => void;
 }
 
@@ -49,13 +50,14 @@ export function SimulationGame({
   opponentLineup,
   stadium,
   isHome,
+  matchId, // ⭐ Props에서 받음
   onGameEnd,
 }: SimulationGameProps) {
   // DB 스키마에 맞춘 MatchInfo 상태
   const stompClient = useRef<Client | null>(null);
 
   const [matchInfo, setMatchInfo] = useState<MatchInfo>({
-    match_id: 'temp-' + Date.now(),
+    match_id: matchId, // ⭐ 전달받은 경기 ID 사용
     status: 'PLAYING',
     score: { home: 0, away: 0 },
     inning: 1,
@@ -267,19 +269,30 @@ export function SimulationGame({
   };
 
   const handlePitch = () => {
-    if (!stompClient.current?.connected || isSimulating || isGameOver) return;
+    const userIdStr = localStorage.getItem('userId');
+    const userId = userIdStr ? Number(userIdStr) : 0;
+
+    console.log(`[DEBUG] Pitch Requested - matchId: ${matchId}, userId: ${userId}`);
+
+    if (!stompClient.current?.connected || isSimulating || isGameOver) {
+      console.warn(`[DEBUG] Cannot Pitch - connected: ${stompClient.current?.connected}, simulating: ${isSimulating}, gameOver: ${isGameOver}`);
+      return;
+    }
 
     setIsSimulating(true);
 
-    // 서버로 투구 명령 전달 (JSON)
+    const payload = {
+      matchId: matchId,
+      type: 'PITCH',
+      senderId: userId,
+      inning: matchInfo.inning
+    };
+
+    console.log("[DEBUG] Sending PITCH payload:", payload);
+
     stompClient.current.publish({
-      destination: `/app/match/${matchInfo.match_id}/command`,
-      body: JSON.stringify({
-        matchId: matchInfo.match_id,
-        type: 'PITCH',
-        senderId: 1020, // 정우님의 유저 ID
-        inning: matchInfo.inning
-      }),
+      destination: `/app/match/${matchId}/command`,
+      body: JSON.stringify(payload),
     });
   };
 
@@ -289,16 +302,43 @@ export function SimulationGame({
     const client = new Client({
       webSocketFactory: () => socket,
       reconnectDelay: 5000,
+      debug: (str) => console.log(`[STOMP DEBUG] ${str}`), // ⭐ STOMP 디버그 로그 추가
       onConnect: () => {
-        console.log('✅ 서버 경기장 연결 성공!');
+        console.log(`✅ 경기장(${matchId}) 연결 성공!`);
 
         // 2. 구독 (서버가 보내주는 결과 받기)
-        client.subscribe(`/topic/match/${matchInfo.match_id}`, (message) => {
-          const response = JSON.parse(message.body); // { eventType, description, matchInfo, ... }
+        client.subscribe(`/topic/match/${matchId}`, (message) => {
+          console.log(`📩 [DEBUG] Received message on /topic/match/${matchId}`);
+          const response = JSON.parse(message.body);
+          console.log("[DEBUG] Response body:", response);
 
           // 서버가 보내준 최신 경기 상태로 화면 동기화
           if (response.matchInfo) {
-            setMatchInfo(response.matchInfo);
+            const info = response.matchInfo;
+
+            // 백엔드(Java/Kotlin) 객체를 프론트엔드 MatchInfo 타입으로 정밀 매핑
+            setMatchInfo(prev => {
+              const updatedInfo = {
+                ...prev,
+                ...info,
+                match_id: info.matchId || info.match_id || matchId,
+                score: info.score || prev.score,
+                is_top: info.top ?? info.is_top ?? prev.is_top,
+                inning: info.inning || prev.inning,
+                ball_count: info.ballCount || info.ball_count || prev.ball_count,
+                // 백엔드의 runnerIds(ID)를 프론트엔드의 Hitter 객체로 매핑
+                runners: (info.runners?.runnerIds || [null, null, null]).map((id: any) => {
+                  if (id === null || id === undefined) return null;
+                  const idNum = Number(id);
+                  return myLineup.batting.find(p => p?.id === idNum) ||
+                    opponentLineup.batting.find(p => p?.id === idNum) ||
+                    { id: idNum, name: '주자', team: '', position: '타자', image_url: '', stats: { avg: 0, ops: 0 } } as any;
+                }),
+                currentBatter: info.currentBatterIndex ?? info.currentBatter ?? prev.currentBatter,
+              };
+              console.log("[DEBUG] Updated matchInfo state:", updatedInfo);
+              return updatedInfo;
+            });
           }
 
           // 중계 멘트 추가
@@ -315,7 +355,7 @@ export function SimulationGame({
     stompClient.current = client;
 
     return () => client.deactivate(); // 컴포넌트 나갈 때 연결 해제
-  }, [matchInfo.match_id]);
+  }, [matchId]);
 
   // 자동 진행
   useEffect(() => {
@@ -336,76 +376,86 @@ export function SimulationGame({
 
   // 교체 핸들러들
   const handlePitcherChange = (pitcher: Pitcher) => {
+    console.log(`[DEBUG] Pitcher Change Requested - In: ${pitcher.name}(${pitcher.id})`);
+
+    if (stompClient.current?.connected) {
+      const userIdStr = localStorage.getItem('userId');
+      const userId = userIdStr ? Number(userIdStr) : 0;
+
+      stompClient.current.publish({
+        destination: `/app/match/${matchId}/command`,
+        body: JSON.stringify({
+          matchId: matchId,
+          type: 'SUBSTITUTION',
+          senderId: userId,
+          inning: matchInfo.inning,
+          data: {
+            command: 'SUBSTITUTION',
+            out_player_id: currentPitcher?.id,
+            in_player_id: pitcher.id
+          }
+        }),
+      });
+    }
+
     setGameLog((prev) => [`[교체] ${currentPitcher?.name} → ${pitcher.name} 투수 교체`, ...prev]);
-    setMatchRecords((prev) => [
-      ...prev,
-      {
-        match_id: matchInfo.match_id,
-        inning: matchInfo.inning,
-        event_type: 'MANAGEMENT',
-        data: {
-          command: 'SUBSTITUTION',
-          out_player_id: currentPitcher?.id,
-          in_player_id: pitcher.id,
-          description: `투수 교체: ${pitcher.name}`
-        },
-        actor_id: pitcher.id,
-        description: `투수 교체: ${pitcher.name}`,
-      },
-    ]);
+    // ... 생략 ...
     setShowPitcherDialog(false);
   };
 
   const handlePinchHitter = (player: Hitter) => {
-    const newLineup = { ...currentLineup };
-    newLineup.batting[matchInfo.currentBatter] = player;
+    console.log(`[DEBUG] Pinch Hitter Requested - In: ${player.name}(${player.id})`);
+
+    if (stompClient.current?.connected) {
+      const userIdStr = localStorage.getItem('userId');
+      const userId = userIdStr ? Number(userIdStr) : 0;
+
+      stompClient.current.publish({
+        destination: `/app/match/${matchId}/command`,
+        body: JSON.stringify({
+          matchId: matchId,
+          type: 'SUBSTITUTION',
+          senderId: userId,
+          inning: matchInfo.inning,
+          data: {
+            command: 'PINCH_HITTER',
+            out_player_id: currentBatter?.id,
+            in_player_id: player.id
+          }
+        }),
+      });
+    }
 
     setGameLog((prev) => [`[교체] ${currentBatter?.name} → ${player.name} 대타`, ...prev]);
-
-    setMatchRecords((prev) => [
-      ...prev,
-      {
-        match_id: matchInfo.match_id,
-        inning: matchInfo.inning,
-        event_type: 'MANAGEMENT',
-        data: {
-          command: 'PINCH_HITTER',
-          out_player_id: currentBatter?.id,
-          in_player_id: player.id,
-          description: `대타: ${player.name}`
-        },
-        actor_id: player.id,
-        description: `대타: ${player.name}`,
-      },
-    ]);
     setShowPinchHitterDialog(false);
   };
 
   const handlePinchRunner = (player: Hitter, base: 0 | 1 | 2) => {
-    const newRunners = [...matchInfo.runners];
-    const oldRunner = newRunners[base];
+    const oldRunner = matchInfo.runners[base];
+    console.log(`[DEBUG] Pinch Runner Requested - In: ${player.name}(${player.id}) at base ${base + 1}`);
 
-    newRunners[base] = player;
-    setMatchInfo({ ...matchInfo, runners: newRunners });
+    if (stompClient.current?.connected) {
+      const userIdStr = localStorage.getItem('userId');
+      const userId = userIdStr ? Number(userIdStr) : 0;
+
+      stompClient.current.publish({
+        destination: `/app/match/${matchId}/command`,
+        body: JSON.stringify({
+          matchId: matchId,
+          type: 'SUBSTITUTION',
+          senderId: userId,
+          inning: matchInfo.inning,
+          data: {
+            command: 'PINCH_RUNNER',
+            out_player_id: oldRunner?.id,
+            in_player_id: player.id,
+            base: base
+          }
+        }),
+      });
+    }
+
     setGameLog((prev) => [`[교체] ${oldRunner?.name} → ${player.name} 대주자 (${base + 1}루)`, ...prev]);
-
-    setMatchRecords((prev) => [
-      ...prev,
-      {
-        match_id: matchInfo.match_id,
-        inning: matchInfo.inning,
-        event_type: 'MANAGEMENT',
-        data: {
-          command: 'PINCH_RUNNER',
-          out_player_id: oldRunner?.id,
-          in_player_id: player.id,
-          base: base,
-          description: `대주자: ${player.name} (${base + 1}루)`
-        },
-        actor_id: player.id,
-        description: `대주자: ${player.name} (${base + 1}루)`,
-      },
-    ]);
     setShowPinchRunnerDialog(false);
     setSelectedRunnerBase(null);
   };

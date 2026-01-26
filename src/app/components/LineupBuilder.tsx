@@ -57,6 +57,7 @@ export function LineupBuilder({
     [team: string]: Player[];
   }>({});
   const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // 데이터 처리 함수
   const processPlayers = (players: Player[]) => {
@@ -468,17 +469,47 @@ export function LineupBuilder({
     setLineup({ ...lineup, bench: newBench });
   };
 
-  const handleSubmit = () => {
-    if (
-      lineup.batting.every((p) => p !== null) &&
-      lineup.pitchers.starter &&
-      lineup.pitchers.middle.every((p) => p !== null) &&
-      lineup.pitchers.closer &&
-      lineup.bench.every((p) => p !== null)
-    ) {
-      onLineupComplete(lineup);
-    } else {
-      alert("모든 포지션을 채워주세요!");
+  const handleSubmit = async () => {
+    // 유효성 검사 및 상세 피드백
+    if (lineup.batting.some((p) => p === null)) {
+      alert("선발 타자 라인업(1~9번)을 모두 채워주세요!");
+      return;
+    }
+
+    if (!lineup.fieldPositions.every(Boolean)) {
+      alert("모든 타자의 수비 포지션을 설정해주세요!");
+      return;
+    }
+
+    if (!lineup.pitchers.starter) {
+      alert("선발 투수를 선택해주세요!");
+      return;
+    }
+
+    if (lineup.pitchers.middle.some((p) => p === null)) {
+      alert("중간 계투진을 모두 채워주세요!");
+      return;
+    }
+
+    if (!lineup.pitchers.closer) {
+      alert("마무리 투수를 선택해주세요!");
+      return;
+    }
+
+    if (lineup.bench.some((p) => p === null)) {
+      alert("벤치 멤버를 모두 채워주세요!");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      // 백엔드 DTO 매핑 로직 강화 가능 (필요시)
+      await onLineupComplete(lineup);
+    } catch (error) {
+      console.error("Submission error:", error);
+      alert("라인업 저장 중 오류가 발생했습니다.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -521,13 +552,23 @@ export function LineupBuilder({
           </div>
 
           <div className="flex items-center gap-4">
-            <Button
-              size="lg"
-              onClick={handleSubmit}
-              className="h-16 px-8 text-lg bg-sonic-red hover:bg-red-600 font-bold shadow-lg shadow-sonic-red/20 text-white border-0"
-            >
-              라인업 확정 및 경기 시작
-            </Button>
+            <div className="flex items-center gap-4">
+              <Button
+                size="lg"
+                onClick={handleSubmit}
+                disabled={isSubmitting}
+                className="h-16 px-8 text-lg bg-sonic-red hover:bg-red-600 font-bold shadow-lg shadow-sonic-red/20 text-white border-0 min-w-[200px]"
+              >
+                {isSubmitting ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    <span>저장 중...</span>
+                  </div>
+                ) : (
+                  "라인업 확정 및 경기 시작"
+                )}
+              </Button>
+            </div>
           </div>
         </div>
 

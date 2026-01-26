@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   BrowserRouter,
   Routes,
@@ -21,6 +21,7 @@ import { MOCK_PLAYERS } from "@/app/data/mockPlayers";
 function AppRoutes() {
   const navigate = useNavigate();
   const [user, setUser] = useState<{
+    id: number;
     name: string;
   } | null>(null);
   const [matchId, setMatchId] = useState<string | null>(null); // ⭐ Match ID 추가
@@ -121,20 +122,66 @@ function AppRoutes() {
     setMyLineup(lineup);
 
     // ⭐ 백엔드에 라인업 저장
-    if (matchId) {
+    if (matchId && user) {
       try {
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
-        await fetch(`${apiUrl}/api/team/lineup`, {
+        // @ts-ignore
+        let apiUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:8080';
+
+        // 브라우저에서는 host.docker.internal을 해석할 수 없으므로 localhost로 변환
+        if (apiUrl.includes('host.docker.internal')) {
+          apiUrl = apiUrl.replace('host.docker.internal', 'localhost');
+        }
+
+        // 수비 포지션 매핑 (starters Map 구성)
+        const startersMap: Record<string, number> = {};
+
+        // 1. 투수 매핑
+        if (lineup.pitchers.starter) {
+          startersMap["P"] = Number(lineup.pitchers.starter.id);
+        }
+
+        // 2. 타자 수비 포지션 매핑
+        lineup.batting.forEach((player, idx) => {
+          const pos = lineup.fieldPositions[idx];
+          if (player && pos) {
+            startersMap[pos] = Number(player.id);
+          }
+        });
+
+        // 백엔드 SaveLineupRequest DTO 형식에 맞춤
+        const payload = {
+          match_id: matchId,
+          user_id: user.id, // 유저 ID 포함 (이미 백엔드에 수정됨)
+          active_lineup: {
+            starters: startersMap,
+            batting_order: lineup.batting.map(p => p ? p.id : 0),
+            bench: lineup.bench.map(p => p ? p.id : 0).filter(id => id !== 0),
+            bullpen: [
+              ...(lineup.pitchers.middle.map(p => p ? p.id : 0)),
+              lineup.pitchers.closer ? lineup.pitchers.closer.id : 0
+            ].filter(id => id !== 0)
+          }
+        };
+
+        console.log("DEBUG: Sending lineup to:", apiUrl);
+        console.log("Team Lineup POST Payload:", payload);
+
+        const response = await fetch(`${apiUrl}/api/team/lineup`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            matchId: matchId,
-            activeLineup: lineup
-          })
+          body: JSON.stringify(payload)
         });
-        console.log("Lineup saved to backend for match:", matchId);
+
+        if (response.ok) {
+          const result = await response.json();
+          console.log("Lineup saved successfully!", result);
+        } else {
+          console.error("Lineup save failed with status:", response.status);
+          const errorText = await response.text();
+          console.error("Error response details:", errorText);
+        }
       } catch (e) {
         console.error("Failed to save lineup:", e);
       }
@@ -202,7 +249,12 @@ function AppRoutes() {
             ) : (
               <LoginScreen
                 onLogin={(loggedInUser) => {
-                  setUser(loggedInUser);
+                  // loggedInUser { name: string } 에서 { id: number, name: string } 로 변환
+                  const userId = localStorage.getItem('userId');
+                  setUser({
+                    id: userId ? Number(userId) : 0,
+                    name: loggedInUser.name
+                  });
                   navigate("/lobby");
                 }}
               />
@@ -276,6 +328,7 @@ function AppRoutes() {
                 opponentLineup={opponentLineup}
                 stadium={stadium}
                 isHome={isHome}
+                matchId={matchId || ""} // ⭐ 추가
                 onGameEnd={handleGameEnd}
               />
             ) : (

@@ -5,6 +5,7 @@ import { Input } from '@/app/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/components/ui/tabs';
 import { Users, Copy, Shuffle, ArrowRight, Loader2, XCircle } from 'lucide-react';
 import { matchmakingService } from '@/app/lib/matchmaking';
+import { api } from '@/app/lib/api'; // ⭐ 추가
 import { useRef, useEffect } from 'react';
 
 interface GameLobbyProps {
@@ -25,14 +26,12 @@ export function GameLobby({ onCreateGame, onJoinGame }: GameLobbyProps) {
   // 초대 코드 생성 /api/rooms POST
   const handleCreateWithCode = async () => {
     try {
-      // TODO: 백엔드 연결 시 주석 해제
-      // const response = await api.post('/api/rooms', { user_id: 1 });
-      // setGeneratedCode(response.data.match_id);
+      const userIdStr = localStorage.getItem('userId');
+      const userId = userIdStr ? Number(userIdStr) : 1;
 
-      // Mock Data for UI Testing
-      const mockMatchId = Math.random().toString(36).substring(2, 8).toUpperCase();
-      await new Promise(resolve => setTimeout(resolve, 500)); // 0.5초 딜레이 시뮬레이션
-      setGeneratedCode(mockMatchId);
+      const response = await api.post('/rooms', { user_id: userId });
+      setGeneratedCode(response.data.match_id);
+      console.log("✅ Room Created:", response.data.match_id);
     } catch (error) {
       console.error('Failed to create room:', error);
       alert('방 생성에 실패했습니다.');
@@ -44,9 +43,24 @@ export function GameLobby({ onCreateGame, onJoinGame }: GameLobbyProps) {
     alert('초대 코드가 복사되었습니다!');
   };
 
-  const handleJoin = () => {
+  const handleJoin = async () => {
     if (inviteCode.length === 6) {
-      onJoinGame(inviteCode);
+      try {
+        const userIdStr = localStorage.getItem('userId');
+        const userId = userIdStr ? Number(userIdStr) : 1;
+
+        // 백엔드에 Join 요청
+        const response = await api.post('/rooms/join', {
+          match_id: inviteCode,
+          guest_id: userId
+        });
+
+        console.log("✅ Joined Room:", response.data.match_id);
+        onJoinGame(inviteCode);
+      } catch (e) {
+        console.error("Join Error:", e);
+        alert("방 참여에 실패했습니다. 코드를 확인해주세요.");
+      }
     } else {
       alert('6자리 초대 코드를 입력해주세요.');
     }
@@ -79,7 +93,7 @@ export function GameLobby({ onCreateGame, onJoinGame }: GameLobbyProps) {
 
             // 매칭 성공 시 라인업 화면으로 이동
             setTimeout(() => {
-              onCreateGame('random');
+              onCreateGame('random', res.matchId); // ⭐ matchId 전달
             }, 1000);
           }
         } catch (err) {
