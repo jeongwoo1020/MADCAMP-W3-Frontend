@@ -1,5 +1,7 @@
+
 import { Button } from "@/app/components/ui/button";
 import { Card } from "@/app/components/ui/card";
+import { authService } from "@/app/lib/auth";
 
 interface LoginScreenProps {
   onLogin: (user: {
@@ -10,16 +12,30 @@ interface LoginScreenProps {
 }
 
 export function LoginScreen({ onLogin }: LoginScreenProps) {
-  const handleGoogleLogin = () => {
-    // 실제 구현에서는 Google OAuth를 사용
-    // 여기서는 Mock 데이터로 로그인 시뮬레이션
-    const mockUser = {
-      name: "야구팬",
-      email: "baseball@example.com",
-      profileImage:
-        "https://ui-avatars.com/api/?name=Baseball+Fan&background=random",
-    };
-    onLogin(mockUser);
+
+  const handleGoogleLogin = async () => {
+    try {
+      // 1. API 호출 (개발용 로그인)
+      // 실제 배포 시에는 Google OAuth flow를 통해 idToken을 얻어와서 authService.googleLogin(token) 호출
+      const { user, access_token } = await authService.devLogin();
+
+      console.log('Login Success:', user, access_token);
+
+      // 토큰 저장 (나중에 api interceptor에서 사용)
+      localStorage.setItem('token', access_token);
+      localStorage.setItem('userId', String(user.id));
+
+      // 2. 상위 컴포넌트로 유저 정보 전달
+      onLogin({
+        name: user.nickname,
+        email: "user@example.com", // 백엔드에서 아직 안 내려줌
+        profileImage: "https://ui-avatars.com/api/?name=" + user.nickname + "&background=random",
+      });
+
+    } catch (error) {
+      console.error('Login Failed:', error);
+      alert('로그인에 실패했습니다. 백엔드 서버가 켜져있는지 확인해주세요.');
+    }
   };
 
   return (
