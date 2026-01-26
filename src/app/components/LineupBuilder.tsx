@@ -26,6 +26,8 @@ import { LineupSlot } from "./lineup/LineupSlot";
 import { PitcherSlot } from "./lineup/PitcherSlot";
 import { BenchSlot } from "./lineup/BenchSlot";
 
+import { fetchAndAdaptPlayers } from "@/app/lib/playerAdapter";
+
 const MAX_CREDITS = 2000; // 최대 크레딧 (테스트용)
 
 interface LineupBuilderProps {
@@ -81,15 +83,46 @@ export function LineupBuilder({
     setGroupedPitchers(pitchersByTeam);
   };
 
+
+
   // 데이터 로드
   useEffect(() => {
-    const loadMockData = () => {
-      console.log("Using mock data fallback (Full Data)");
-      processPlayers(MOCK_PLAYERS);
-      setLoading(false);
+    const loadPlayers = async () => {
+      setLoading(true);
+      try {
+        const { batters, pitchers } = await fetchAndAdaptPlayers();
+
+        if (batters.length === 0 && pitchers.length === 0) {
+          console.warn("No players found from API, using mock data fallback.");
+          processPlayers(MOCK_PLAYERS);
+        } else {
+          console.log("Loaded players from API:", batters.length + pitchers.length);
+
+          // 그룹화 로직 (여기서 다시 수행)
+          const battersByTeam: { [key: string]: Player[] } = {};
+          batters.forEach((p) => {
+            if (!battersByTeam[p.team]) battersByTeam[p.team] = [];
+            battersByTeam[p.team].push(p);
+          });
+
+          const pitchersByTeam: { [key: string]: Player[] } = {};
+          pitchers.forEach((p) => {
+            if (!pitchersByTeam[p.team]) pitchersByTeam[p.team] = [];
+            pitchersByTeam[p.team].push(p);
+          });
+
+          setGroupedBatters(battersByTeam);
+          setGroupedPitchers(pitchersByTeam);
+        }
+      } catch (e) {
+        console.error("Error loading players:", e);
+        processPlayers(MOCK_PLAYERS);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    loadMockData();
+    loadPlayers();
   }, []);
 
   const TEAMS = Array.from(

@@ -8,7 +8,7 @@ import { matchmakingService } from '@/app/lib/matchmaking';
 import { useRef, useEffect } from 'react';
 
 interface GameLobbyProps {
-  onCreateGame: (mode: 'friend' | 'invite' | 'random') => void;
+  onCreateGame: (mode: 'friend' | 'invite' | 'random', matchId?: string) => void;
   onJoinGame: (inviteCode: string) => void;
 }
 
@@ -209,7 +209,7 @@ export function GameLobby({ onCreateGame, onJoinGame }: GameLobbyProps) {
                               친구에게 이 코드를 공유하세요
                             </p>
                             <Button
-                              onClick={() => onCreateGame('invite')}
+                              onClick={() => onCreateGame('invite', generatedCode)}
                               className="w-full bg-white hover:bg-gray-200 text-black border-0 font-bold shadow-lg shadow-voltage-blue/20"
                               size="lg"
                             >
