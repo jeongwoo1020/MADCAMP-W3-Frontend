@@ -27,32 +27,55 @@ export function BenchSlot({ index, player, onDrop, onRemove, label }: BenchSlotP
     return (
         <div
             ref={drop}
-            className={`min-h-[50px] rounded border-2 border-dashed p-2 transition-colors text-sm bg-white/90 text-black ${isOver ? 'border-purple-500 bg-purple-50' : 'border-gray-400'
+            className={`min-h-[100px] rounded-lg border-2 border-dashed p-3 transition-colors text-base bg-white/90 text-black shadow-sm ${isOver ? 'border-purple-500 bg-purple-50' : 'border-gray-400'
                 }`}
         >
-            <div className="text-xs text-gray-600 font-bold mb-1">{label}</div>
+            <div className="text-sm font-bold text-gray-700 mb-2">{label}</div>
             {player ? (
-                <div className="flex items-center justify-between gap-2">
-                    <div className="text-xs flex-1">
-                        <span className="font-semibold text-black">{player.name}</span>
-                        <span className="text-gray-600 ml-1">({player.position})</span>
+                <div className="flex items-center gap-3">
+                    {/* Image */}
+                    <div className="w-14 h-14 rounded-full overflow-hidden bg-gray-100 flex-shrink-0 border border-gray-200">
+                        {player.image_url ? (
+                            <img
+                                src={player.image_url}
+                                alt={player.name}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                    e.currentTarget.style.display = 'none';
+                                    e.currentTarget.parentElement?.classList.add('flex', 'items-center', 'justify-center');
+                                    const icon = document.createElement('span');
+                                    icon.textContent = '⚾';
+                                    icon.style.fontSize = '24px';
+                                    e.currentTarget.parentElement?.appendChild(icon);
+                                }}
+                            />
+                        ) : (
+                            <div className="w-full h-full flex items-center justify-center text-xl">⚾</div>
+                        )}
                     </div>
-                    <div className="flex items-center gap-1">
-                        <div className="flex items-center gap-1 text-amber-600 text-xs font-bold">
-                            <Coins className="w-3 h-3" />
+
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-1 mb-1">
+                            <div className="flex items-center gap-2 min-w-0">
+                                <span className="font-bold text-lg truncate text-black">{player.name}</span>
+                                <span className="text-gray-600 text-sm whitespace-nowrap">({player.position})</span>
+                            </div>
+                            <button
+                                onClick={() => onRemove(index)}
+                                className="p-1 hover:bg-red-100 rounded-full transition-colors flex-shrink-0"
+                                title="제거"
+                            >
+                                <X className="w-4 h-4 text-red-600" />
+                            </button>
+                        </div>
+                        <div className="flex items-center gap-1 text-amber-600 text-sm font-bold">
+                            <Coins className="w-4 h-4" />
                             {player.salary}
                         </div>
-                        <button
-                            onClick={() => onRemove(index)}
-                            className="p-0.5 hover:bg-red-100 rounded transition-colors"
-                            title="제거"
-                        >
-                            <X className="w-3 h-3 text-red-600" />
-                        </button>
                     </div>
                 </div>
             ) : (
-                <div className="flex items-center justify-center h-full text-xs text-gray-500 font-medium">
+                <div className="flex items-center justify-center h-[60px] text-base text-gray-500 font-medium">
                     드래그
                 </div>
             )}

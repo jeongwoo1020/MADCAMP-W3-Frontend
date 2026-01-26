@@ -61,67 +61,71 @@ export function VSPage({ myLineup, opponentLineup, onComplete }: VSPageProps) {
             <div className="w-full max-w-[1400px] grid grid-cols-3 gap-8 items-center relative z-10 animate-in fade-in duration-1000">
 
                 {/* 우리 팀 */}
-                <Card
-                    className="p-8 bg-white/10 backdrop-blur-md border border-white/20 shadow-2xl overflow-hidden relative"
-                    style={{
-                        borderBottomWidth: '6px',
-                        borderColor: myTheme?.primary
-                    }}
-                >
-                    <div
-                        className="absolute top-0 left-0 w-full h-2 opacity-50"
-                        style={{ backgroundColor: myTheme?.primary }}
-                    />
-
+                <div className="p-8 relative">
                     <div className="text-center mb-6 relative z-10">
                         <Badge className="mb-3 text-sm px-3 py-1" style={{ backgroundColor: myTheme?.primary }}>
                             HOME TEAM
                         </Badge>
-                        <div
-                            className="w-32 h-32 mx-auto rounded-full flex items-center justify-center mb-4 border-4 shadow-lg"
-                            style={{
-                                backgroundColor: myTheme?.primary,
-                                borderColor: myTheme?.secondary || '#ffffff',
-                                boxShadow: `0 0 30px ${myTheme?.primary}60`
-                            }}
-                        >
-                            <Users className="w-16 h-16 text-white" />
+                        <div className="w-40 h-40 mx-auto mb-6 relative flex items-center justify-center">
+                            {/* Logo Image */}
+                            <img
+                                src={`/assets/logos/${myTeam}.png`}
+                                alt={myTeam}
+                                className="w-full h-full object-contain drop-shadow-[0_0_25px_rgba(255,255,255,0.3)] relative z-10"
+                                onError={(e) => {
+                                    e.currentTarget.style.display = 'none';
+                                    const fallback = e.currentTarget.parentElement?.querySelector('.fallback-icon');
+                                    if (fallback) fallback.classList.remove('hidden');
+                                }}
+                            />
+                            {/* Fallback Icon (Hidden by default) */}
+                            <div
+                                className="fallback-icon hidden absolute inset-0 rounded-full flex items-center justify-center border-4 shadow-lg"
+                                style={{
+                                    backgroundColor: myTheme?.primary,
+                                    borderColor: myTheme?.secondary || '#ffffff',
+                                    boxShadow: `0 0 30px ${myTheme?.primary}60`
+                                }}
+                            >
+                                <Users className="w-16 h-16 text-white" />
+                            </div>
                         </div>
-                        <h3 className="text-4xl font-black mb-2 text-white drop-shadow-md">{myTeam}</h3>
-                        <div className="flex items-center justify-center gap-2 text-white/80 font-bold bg-black/30 w-fit mx-auto px-4 py-1 rounded-full">
-                            <Coins className="w-4 h-4 text-yellow-500" />
-                            <span>{myCredits.toLocaleString()} Credits</span>
+
+                        <h3 className="text-5xl font-black mb-2 text-white drop-shadow-[0_4px_4px_rgba(0,0,0,0.5)] tracking-tight">{myTeam}</h3>
+                        <div className="flex items-center justify-center gap-2 text-white/90 font-bold w-fit mx-auto px-4 py-1">
+                            <Coins className="w-4 h-4 text-yellow-400" />
+                            <span className="text-lg shadow-black drop-shadow-md">{myCredits.toLocaleString()} Credits</span>
                         </div>
                     </div>
 
-                    <Separator className="my-6 bg-white/10" />
-
                     {/* Key Player Preview */}
-                    <div className="space-y-4">
-                        <div className="text-white font-bold text-lg mb-2 flex items-center gap-2">
+                    <div className="space-y-4 mt-8">
+                        <div className="text-white font-bold text-lg mb-2 flex items-center gap-2 drop-shadow-md">
                             <Trophy className="w-5 h-5 text-yellow-500" /> KEY PLAYERS
                         </div>
-                        {myLineup.batting.slice(0, 3).map((player, idx) => (
-                            <div key={idx} className="flex items-center justify-between text-sm bg-black/40 p-3 rounded-lg border border-white/5 backdrop-blur-sm">
-                                <span className="font-bold text-white text-base">{idx + 1}. {player?.name}</span>
-                                <Badge variant="outline" className="text-xs border-white/30 text-white/70">{player?.position}</Badge>
-                            </div>
-                        ))}
+                        <div className="space-y-2">
+                            {myLineup.batting.slice(0, 3).map((player, idx) => (
+                                <div key={idx} className="flex items-center justify-between text-sm text-white border-b border-white/20 pb-2">
+                                    <span className="font-bold text-xl drop-shadow-md">{idx + 1}. {player?.name}</span>
+                                    <span className="text-sm text-white/80 font-medium">{player?.position}</span>
+                                </div>
+                            ))}
+                        </div>
 
-                        <div className="mt-6 pt-4 border-t border-white/10">
-                            <div className="text-sm font-bold mb-2 text-white/60">STARTER PITCHER</div>
-                            <div className="text-lg font-black bg-gradient-to-r from-green-900/50 to-emerald-900/50 p-4 rounded-xl text-emerald-400 border border-emerald-500/30 flex items-center gap-3">
-                                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                        <div className="mt-8 pt-4">
+                            <div className="text-sm font-bold mb-2 text-white/60 uppercase tracking-widest">Starter Pitcher</div>
+                            <div className="text-2xl font-black text-emerald-400 drop-shadow-md flex items-center gap-3">
+                                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_#10b981]" />
                                 {myLineup.pitchers.starter?.name}
                             </div>
                         </div>
                     </div>
-                </Card>
+                </div>
 
                 {/* VS Center */}
                 <div className="text-center relative">
-                    <div className="absolute inset-0 bg-red-500/20 blur-[100px] animate-pulse rounded-full" />
-                    <div className="relative z-10 text-9xl font-black italic text-white drop-shadow-[0_0_20px_rgba(255,50,50,0.8)] animate-bounce tracking-tighter">
+                    <div className="absolute inset-0 bg-red-500/20 blur-[120px] animate-pulse rounded-full" />
+                    <div className="relative z-10 text-[10rem] font-black italic text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-orange-500 drop-shadow-[0_0_30px_rgba(255,50,50,0.8)] animate-bounce tracking-tighter" style={{ WebkitTextStroke: '2px white' }}>
                         VS
                     </div>
                     <div className="mt-8">
@@ -135,60 +139,66 @@ export function VSPage({ myLineup, opponentLineup, onComplete }: VSPageProps) {
                 </div>
 
                 {/* 상대 팀 */}
-                <Card
-                    className="p-8 bg-white/10 backdrop-blur-md border border-white/20 shadow-2xl overflow-hidden relative"
-                    style={{
-                        borderBottomWidth: '6px',
-                        borderColor: opponentTheme?.primary
-                    }}
-                >
-                    <div
-                        className="absolute top-0 left-0 w-full h-2 opacity-50"
-                        style={{ backgroundColor: opponentTheme?.primary }}
-                    />
-
+                <div className="p-8 relative">
                     <div className="text-center mb-6 relative z-10">
                         <Badge className="mb-3 text-sm px-3 py-1" style={{ backgroundColor: opponentTheme?.primary }}>
                             AWAY TEAM
                         </Badge>
-                        <div
-                            className="w-32 h-32 mx-auto rounded-full flex items-center justify-center mb-4 border-4 shadow-lg"
-                            style={{
-                                backgroundColor: opponentTheme?.primary,
-                                borderColor: opponentTheme?.secondary || '#ffffff',
-                                boxShadow: `0 0 30px ${opponentTheme?.primary}60`
-                            }}
-                        >
-                            <Users className="w-16 h-16 text-white" />
+                        <div className="w-40 h-40 mx-auto mb-6 relative flex items-center justify-center">
+                            {/* Logo Image */}
+                            <img
+                                src={`/assets/logos/${opponentTeam}.png`}
+                                alt={opponentTeam}
+                                className="w-full h-full object-contain drop-shadow-[0_0_25px_rgba(255,255,255,0.3)] relative z-10"
+                                onError={(e) => {
+                                    e.currentTarget.style.display = 'none';
+                                    const fallback = e.currentTarget.parentElement?.querySelector('.fallback-icon');
+                                    if (fallback) fallback.classList.remove('hidden');
+                                }}
+                            />
+                            {/* Fallback Icon (Hidden by default) */}
+                            <div
+                                className="fallback-icon hidden absolute inset-0 rounded-full flex items-center justify-center border-4 shadow-lg"
+                                style={{
+                                    backgroundColor: opponentTheme?.primary,
+                                    borderColor: opponentTheme?.secondary || '#ffffff',
+                                    boxShadow: `0 0 30px ${opponentTheme?.primary}60`
+                                }}
+                            >
+                                <Users className="w-16 h-16 text-white" />
+                            </div>
                         </div>
-                        <h3 className="text-4xl font-black mb-2 text-white drop-shadow-md">{opponentTeam}</h3>
-                        <div className="flex items-center justify-center gap-2 text-white/80 font-bold bg-black/30 w-fit mx-auto px-4 py-1 rounded-full">
-                            <Coins className="w-4 h-4 text-yellow-500" />
-                            <span>{opponentCredits.toLocaleString()} Credits</span>
+
+                        <h3 className="text-5xl font-black mb-2 text-white drop-shadow-[0_4px_4px_rgba(0,0,0,0.5)] tracking-tight">{opponentTeam}</h3>
+                        <div className="flex items-center justify-center gap-2 text-white/90 font-bold w-fit mx-auto px-4 py-1">
+                            <Coins className="w-4 h-4 text-yellow-400" />
+                            <span className="text-lg shadow-black drop-shadow-md">{opponentCredits.toLocaleString()} Credits</span>
                         </div>
                     </div>
 
-                    <Separator className="my-6 bg-white/10" />
-
-                    <div className="space-y-4">
-                        <div className="text-white font-bold text-lg mb-2 flex items-center gap-2">
+                    {/* Key Player Preview */}
+                    <div className="space-y-4 mt-8">
+                        <div className="text-white font-bold text-lg mb-2 flex items-center gap-2 drop-shadow-md">
                             <Trophy className="w-5 h-5 text-yellow-500" /> KEY PLAYERS
                         </div>
-                        {opponentLineup.batting.slice(0, 3).map((player, idx) => (
-                            <div key={idx} className="flex items-center justify-between text-sm bg-black/40 p-3 rounded-lg border border-white/5 backdrop-blur-sm">
-                                <span className="font-bold text-white text-base">{idx + 1}. {player?.name}</span>
-                                <Badge variant="outline" className="text-xs border-white/30 text-white/70">{player?.position}</Badge>
-                            </div>
-                        ))}
-                        <div className="mt-6 pt-4 border-t border-white/10">
-                            <div className="text-sm font-bold mb-2 text-white/60">STARTER PITCHER</div>
-                            <div className="text-lg font-black bg-gradient-to-r from-green-900/50 to-emerald-900/50 p-4 rounded-xl text-emerald-400 border border-emerald-500/30 flex items-center gap-3">
-                                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                        <div className="space-y-2">
+                            {opponentLineup.batting.slice(0, 3).map((player, idx) => (
+                                <div key={idx} className="flex items-center justify-between text-sm text-white border-b border-white/20 pb-2">
+                                    <span className="font-bold text-xl drop-shadow-md">{idx + 1}. {player?.name}</span>
+                                    <span className="text-sm text-white/80 font-medium">{player?.position}</span>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="mt-8 pt-4">
+                            <div className="text-sm font-bold mb-2 text-white/60 uppercase tracking-widest">Starter Pitcher</div>
+                            <div className="text-2xl font-black text-emerald-400 drop-shadow-md flex items-center gap-3">
+                                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_#10b981]" />
                                 {opponentLineup.pitchers.starter?.name}
                             </div>
                         </div>
                     </div>
-                </Card>
+                </div>
             </div>
         </div>
     );
