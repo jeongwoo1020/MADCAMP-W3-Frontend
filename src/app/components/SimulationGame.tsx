@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Lineup, MatchInfo, AtBatResult, Hitter, Pitcher, Stadium, MatchRecord } from '@/app/types';
 import { Card } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
@@ -19,6 +19,8 @@ import {
   DialogDescription,
 } from '@/app/components/ui/dialog';
 import { Repeat, User, Users, TrendingUp, Target, Play, Pause } from 'lucide-react';
+import { Client } from '@stomp/stompjs';
+import SockJS from 'sockjs-client';
 
 interface SimulationGameProps {
   myLineup: Lineup;
@@ -50,6 +52,8 @@ export function SimulationGame({
   onGameEnd,
 }: SimulationGameProps) {
   // DB 스키마에 맞춘 MatchInfo 상태
+  const stompClient = useRef<Client | null>(null);
+
   const [matchInfo, setMatchInfo] = useState<MatchInfo>({
     match_id: 'temp-' + Date.now(),
     status: 'PLAYING',
@@ -263,35 +267,55 @@ export function SimulationGame({
   };
 
   const handlePitch = () => {
-    if (isSimulating || isGameOver) return;
+    if (!stompClient.current?.connected || isSimulating || isGameOver) return;
 
     setIsSimulating(true);
-    setTimeout(() => {
-      const result = simulateAtBat();
-      setLastResult(result);
-      const newState = updateGameState(result);
-      setMatchInfo(newState);
 
-      setGameLog((prev) => [
-        `[${newState.inning}회 ${newState.is_top ? '초' : '말'}] ${result.description}`,
-        ...prev,
-      ]);
-
-      setMatchRecords((prev) => [
-        ...prev,
-        {
-          match_id: matchInfo.match_id,
-          inning: newState.inning,
-          event_type: 'AT_BAT',
-          data: { result, pitch: currentPitch },
-          actor_id: currentBatter?.id || 0,
-          description: result.description,
-        },
-      ]);
-
-      setIsSimulating(false);
-    }, 800);
+    // 서버로 투구 명령 전달 (JSON)
+    stompClient.current.publish({
+      destination: `/app/match/${matchInfo.match_id}/command`,
+      body: JSON.stringify({
+        matchId: matchInfo.match_id,
+        type: 'PITCH',
+        senderId: 1020, // 정우님의 유저 ID
+        inning: matchInfo.inning
+      }),
+    });
   };
+
+  useEffect(() => {
+    // 1. 소켓 객체 생성
+    const socket = new SockJS('http://localhost:8080/ws-baseball');
+    const client = new Client({
+      webSocketFactory: () => socket,
+      reconnectDelay: 5000,
+      onConnect: () => {
+        console.log('✅ 서버 경기장 연결 성공!');
+
+        // 2. 구독 (서버가 보내주는 결과 받기)
+        client.subscribe(`/topic/match/${matchInfo.match_id}`, (message) => {
+          const response = JSON.parse(message.body); // { eventType, description, matchInfo, ... }
+
+          // 서버가 보내준 최신 경기 상태로 화면 동기화
+          if (response.matchInfo) {
+            setMatchInfo(response.matchInfo);
+          }
+
+          // 중계 멘트 추가
+          if (response.description) {
+            setGameLog((prev) => [response.description, ...prev]);
+          }
+
+          setIsSimulating(false); // 투구 애니메이션 종료
+        });
+      },
+    });
+
+    client.activate();
+    stompClient.current = client;
+
+    return () => client.deactivate(); // 컴포넌트 나갈 때 연결 해제
+  }, [matchInfo.match_id]);
 
   // 자동 진행
   useEffect(() => {
@@ -318,8 +342,13 @@ export function SimulationGame({
       {
         match_id: matchInfo.match_id,
         inning: matchInfo.inning,
-        event_type: 'SUBSTITUTION',
-        data: { type: 'pitcher', player: pitcher },
+        event_type: 'MANAGEMENT',
+        data: {
+          command: 'SUBSTITUTION',
+          out_player_id: currentPitcher?.id,
+          in_player_id: pitcher.id,
+          description: `투수 교체: ${pitcher.name}`
+        },
         actor_id: pitcher.id,
         description: `투수 교체: ${pitcher.name}`,
       },

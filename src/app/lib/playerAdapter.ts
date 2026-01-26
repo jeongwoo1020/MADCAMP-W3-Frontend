@@ -76,7 +76,10 @@ function getTeamLogoUrl(teamName: string): string {
 
 export async function fetchAndAdaptPlayers(): Promise<{ batters: Player[], pitchers: Player[] }> {
     try {
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+        let apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+        if (apiUrl.includes('host.docker.internal')) {
+            apiUrl = apiUrl.replace('host.docker.internal', 'localhost');
+        }
         console.log(`Fetching players from: ${apiUrl}/api/team/players`);
 
         const response = await fetch(`${apiUrl}/api/team/players`);
