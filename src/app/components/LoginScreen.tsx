@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { Card } from "@/app/components/ui/card";
 import { Button } from "@/app/components/ui/button";
+import { Input } from "@/app/components/ui/input";
 import { authService } from "@/app/lib/auth";
 
 interface LoginScreenProps {
@@ -9,6 +11,7 @@ interface LoginScreenProps {
 }
 
 export function LoginScreen({ onLogin }: LoginScreenProps) {
+  const [playerName, setPlayerName] = useState("");
 
 
   return (
@@ -72,20 +75,35 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
         <div className="max-w-md mx-auto">
           <Card className="p-8 bg-card/80 backdrop-blur-xl border border-voltage-blue/30 shadow-2xl relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-sonic-red via-cyber-yellow to-voltage-blue" />
+
+            {/* 플레이어 이름 입력 추가 */}
+            <div className="mb-12">
+              <label className="block text-xl font-black mb-3 text-white uppercase tracking-wider">플레이어 이름</label>
+              <Input
+                type="text"
+                placeholder="이름을 입력하세요"
+                value={playerName}
+                onChange={(e) => setPlayerName(e.target.value)}
+                className="text-2xl h-14 bg-black/40 border-white/20 text-white placeholder:text-gray-500 focus:border-voltage-blue focus:ring-voltage-blue font-bold px-6 mb-6"
+              />
+            </div>
+
             <div className="flex justify-center w-full">
               <Button
+                disabled={!playerName.trim()}
                 onClick={async () => {
                   try {
                     const { user, access_token } = await authService.devLogin();
                     localStorage.setItem('token', access_token);
                     localStorage.setItem('userId', String(user.id));
-                    onLogin({ name: user.nickname });
+                    // 닉네임 대신 직접 입력한 이름을 사용
+                    onLogin({ name: playerName.trim() });
                   } catch (e) {
                     console.error(e);
                     alert("로그인 실패 (백엔드 연결 확인 필요)");
                   }
                 }}
-                className="w-full h-16 text-lg font-bold bg-white hover:bg-gray-200 text-black border-0 shadow-[0_0_15px_rgba(255,255,255,0.4)] hover:shadow-[0_0_25px_rgba(255,255,255,0.6)] transform hover:scale-105 transition-all"
+                className="w-full h-16 text-lg font-bold bg-white hover:bg-gray-200 text-black border-0 shadow-[0_0_15px_rgba(255,255,255,0.4)] hover:shadow-[0_0_25px_rgba(255,255,255,0.6)] transform hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                 size="lg"
               >
                 <svg className="w-6 h-6 mr-3" viewBox="0 0 24 24">

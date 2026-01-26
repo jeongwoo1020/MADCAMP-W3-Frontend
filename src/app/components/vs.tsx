@@ -69,7 +69,7 @@ export function VSPage({ myLineup, opponentLineup, onComplete }: VSPageProps) {
                         <div className="w-40 h-40 mx-auto mb-6 relative flex items-center justify-center">
                             {/* Logo Image */}
                             <img
-                                src={`/assets/logos/${myTeam}.png`}
+                                src={`/assets/logos/${myTeam.trim()}.png`}
                                 alt={myTeam}
                                 className="w-full h-full object-contain drop-shadow-[0_0_25px_rgba(255,255,255,0.3)] relative z-10"
                                 onError={(e) => {
@@ -78,16 +78,16 @@ export function VSPage({ myLineup, opponentLineup, onComplete }: VSPageProps) {
                                     if (fallback) fallback.classList.remove('hidden');
                                 }}
                             />
-                            {/* Fallback Icon (Hidden by default) */}
+                            {/* Fallback Icon */}
                             <div
-                                className="fallback-icon hidden absolute inset-0 rounded-full flex items-center justify-center border-4 shadow-lg"
+                                className="fallback-icon hidden absolute inset-0 rounded-full flex items-center justify-center border-4 shadow-lg text-white font-black text-4xl"
                                 style={{
                                     backgroundColor: myTheme?.primary,
                                     borderColor: myTheme?.secondary || '#ffffff',
                                     boxShadow: `0 0 30px ${myTheme?.primary}60`
                                 }}
                             >
-                                <Users className="w-16 h-16 text-white" />
+                                {myTeam.trim()[0]}
                             </div>
                         </div>
 
@@ -114,7 +114,7 @@ export function VSPage({ myLineup, opponentLineup, onComplete }: VSPageProps) {
 
                         <div className="mt-8 pt-4">
                             <div className="text-sm font-bold mb-2 text-white/60 uppercase tracking-widest">Starter Pitcher</div>
-                            <div className="text-2xl font-black text-emerald-400 drop-shadow-md flex items-center gap-3">
+                            <div className="text-2xl font-black text-white drop-shadow-md flex items-center gap-3">
                                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_#10b981]" />
                                 {myLineup.pitchers.starter?.name}
                             </div>
@@ -147,7 +147,7 @@ export function VSPage({ myLineup, opponentLineup, onComplete }: VSPageProps) {
                         <div className="w-40 h-40 mx-auto mb-6 relative flex items-center justify-center">
                             {/* Logo Image */}
                             <img
-                                src={`/assets/logos/${opponentTeam}.png`}
+                                src={`/assets/logos/${opponentTeam.trim()}.png`}
                                 alt={opponentTeam}
                                 className="w-full h-full object-contain drop-shadow-[0_0_25px_rgba(255,255,255,0.3)] relative z-10"
                                 onError={(e) => {
@@ -156,16 +156,16 @@ export function VSPage({ myLineup, opponentLineup, onComplete }: VSPageProps) {
                                     if (fallback) fallback.classList.remove('hidden');
                                 }}
                             />
-                            {/* Fallback Icon (Hidden by default) */}
+                            {/* Fallback Icon */}
                             <div
-                                className="fallback-icon hidden absolute inset-0 rounded-full flex items-center justify-center border-4 shadow-lg"
+                                className="fallback-icon hidden absolute inset-0 rounded-full flex items-center justify-center border-4 shadow-lg text-white font-black text-4xl"
                                 style={{
                                     backgroundColor: opponentTheme?.primary,
                                     borderColor: opponentTheme?.secondary || '#ffffff',
                                     boxShadow: `0 0 30px ${opponentTheme?.primary}60`
                                 }}
                             >
-                                <Users className="w-16 h-16 text-white" />
+                                {opponentTeam.trim()[0]}
                             </div>
                         </div>
 
@@ -189,10 +189,9 @@ export function VSPage({ myLineup, opponentLineup, onComplete }: VSPageProps) {
                                 </div>
                             ))}
                         </div>
-
                         <div className="mt-8 pt-4">
                             <div className="text-sm font-bold mb-2 text-white/60 uppercase tracking-widest">Starter Pitcher</div>
-                            <div className="text-2xl font-black text-emerald-400 drop-shadow-md flex items-center gap-3">
+                            <div className="text-2xl font-black text-white drop-shadow-md flex items-center gap-3">
                                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_#10b981]" />
                                 {opponentLineup.pitchers.starter?.name}
                             </div>

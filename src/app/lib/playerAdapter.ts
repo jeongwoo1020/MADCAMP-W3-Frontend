@@ -45,25 +45,37 @@ interface BackendPlayersResponse {
     pitchers: BackendPitcher[];
 }
 
+// 팀 이름 한글 -> 풀네임 매핑 (백엔드 데이터 -> 프론트엔드 테마/에셋)
+export const TEAM_NAME_MAP: Record<string, string> = {
+    'LG': 'LG 트윈스',
+    '한화': '한화 이글스',
+    'SSG': 'SSG 랜더스',
+    '삼성': '삼성 라이온즈',
+    'NC': 'NC 다이노스',
+    'KT': 'KT 위즈',
+    '롯데': '롯데 자이언츠',
+    'KIA': 'KIA 타이거즈',
+    '두산': '두산 베어스',
+    '키움': '키움 히어로즈'
+};
+
+function normalizeTeamName(team: string): string {
+    const trimmed = team?.trim();
+    return TEAM_NAME_MAP[trimmed] || trimmed || '내 팀';
+}
+
 // 연봉 계산 (mockPlayers.ts 로직 재사용 + 수정)
 function calculateSalary(player: Player): number {
     if (player.position === '투수') {
-        // 투수: ERA 기반 (낮을수록 비쌈)
-        // ERA가 없으면 기본값 처리
         const era = player.stats?.era || 4.5;
-        // 1.5 ~ 6.0 범위 -> 점수화
         const salaryBase = Math.max(10, Math.min(100, (6.0 - era) * 25));
-
         const roleMultiplier =
             player.pitcherRole === 'starter' ? 1.5 :
                 player.pitcherRole === 'closer' ? 1.3 :
                     1.0;
-
-        return Math.round(salaryBase * roleMultiplier) * 10; // 단위 조정 (10~2000 범위 맞추기 위해 10배)
+        return Math.round(salaryBase * roleMultiplier) * 10;
     } else {
-        // 타자: OPS 기반 (높을수록 비쌈)
         const ops = player.stats?.ops || 0.7;
-        // 0.6 ~ 1.1 범위
         const salaryBase = Math.max(10, Math.min(100, (ops - 0.5) * 200));
         return Math.round(salaryBase) * 10;
     }
@@ -71,7 +83,8 @@ function calculateSalary(player: Player): number {
 
 // URL 유틸리티 (필요시 이미지 매핑)
 function getTeamLogoUrl(teamName: string): string {
-    return `/assets/logos/${teamName}.png`;
+    const normalized = normalizeTeamName(teamName);
+    return `/assets/logos/${normalized}.png`;
 }
 
 export async function fetchAndAdaptPlayers(): Promise<{ batters: Player[], pitchers: Player[] }> {
@@ -119,7 +132,7 @@ export async function fetchAndAdaptPlayers(): Promise<{ batters: Player[], pitch
             const player: Player = {
                 id: b.id, // Number로 유지
                 name: b.name,
-                team: b.team,
+                team: normalizeTeamName(b.team),
                 position: b.position,
                 image_url: imageUrl,
                 credit: 0,
@@ -177,7 +190,7 @@ export async function fetchAndAdaptPlayers(): Promise<{ batters: Player[], pitch
             const player: Player = {
                 id: p.id,
                 name: p.name,
-                team: p.team,
+                team: normalizeTeamName(p.team),
                 position: '투수',
                 image_url: imageUrl,
                 credit: 0,

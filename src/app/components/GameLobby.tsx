@@ -16,7 +16,6 @@ interface GameLobbyProps {
 export function GameLobby({ onCreateGame, onJoinGame }: GameLobbyProps) {
   const [inviteCode, setInviteCode] = useState('');
   const [generatedCode, setGeneratedCode] = useState('');
-  const [playerName, setPlayerName] = useState('');
 
   // 매칭 관련 상태
   const [isMatching, setIsMatching] = useState(false);
@@ -148,10 +147,10 @@ export function GameLobby({ onCreateGame, onJoinGame }: GameLobbyProps) {
             </div> */}
             <div className="text-8xl mb-4 drop-shadow-[0_0_15px_rgba(255,49,49,0.5)] animate-bounce text-white">⚾</div>
           </div>
-          <h2 className="text-6xl font-black bg-gradient-to-r from-sonic-red via-cyber-yellow to-voltage-blue bg-clip-text text-transparent mb-3 drop-shadow-[0_0_10px_rgba(255,49,49,0.3)]">
+          <h2 className="text-5xl font-black bg-gradient-to-r from-sonic-red via-cyber-yellow to-voltage-blue bg-clip-text text-transparent mb-4 drop-shadow-[0_0_15px_rgba(255,49,49,0.4)]">
             게임 로비
           </h2>
-          <p className="text-2xl text-white font-bold drop-shadow-lg">라인업을 구성하고 친구와 대결하세요!</p>
+          <p className="text-2xl text-white font-black drop-shadow-2xl">라인업을 구성하고 친구와 대결하세요!</p>
         </div>
 
         {/* 메인 카드 */}
@@ -159,16 +158,16 @@ export function GameLobby({ onCreateGame, onJoinGame }: GameLobbyProps) {
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-sonic-red via-cyber-yellow to-voltage-blue" />
 
           <Tabs defaultValue="create" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-6 bg-black/40 p-1 border border-white/10">
+            <TabsList className="grid w-full grid-cols-2 mb-8 bg-black/40 p-1.5 border border-white/10 h-16">
               <TabsTrigger
                 value="create"
-                className="text-lg data-[state=active]:bg-voltage-blue data-[state=active]:text-black text-gray-400 transition-all font-bold"
+                className="text-2xl data-[state=active]:bg-voltage-blue data-[state=active]:text-black text-gray-400 transition-all font-black"
               >
                 게임 만들기
               </TabsTrigger>
               <TabsTrigger
                 value="join"
-                className="text-lg data-[state=active]:bg-cyber-yellow data-[state=active]:text-black text-gray-400 transition-all font-bold"
+                className="text-2xl data-[state=active]:bg-cyber-yellow data-[state=active]:text-black text-gray-400 transition-all font-black"
               >
                 게임 참여하기
               </TabsTrigger>
@@ -177,18 +176,6 @@ export function GameLobby({ onCreateGame, onJoinGame }: GameLobbyProps) {
             {/* 게임 만들기 탭 (Blue & White) */}
             <TabsContent value="create">
               <div className="space-y-4">
-
-                {/* 플레이어 이름 입력 */}
-                <div className="mb-6">
-                  <label className="block text-sm font-bold mb-2 text-white">플레이어 이름</label>
-                  <Input
-                    type="text"
-                    placeholder="이름을 입력하세요"
-                    value={playerName}
-                    onChange={(e) => setPlayerName(e.target.value)}
-                    className="text-lg bg-black/40 border-white/20 text-white placeholder:text-gray-500 focus:border-voltage-blue focus:ring-voltage-blue"
-                  />
-                </div>
 
                 {/* 게임 모드 선택 버튼들 */}
                 <div className="grid grid-cols-1 gap-4">
@@ -199,12 +186,12 @@ export function GameLobby({ onCreateGame, onJoinGame }: GameLobbyProps) {
                         <Users className="w-7 h-7 text-voltage-blue" />
                       </div>
                       <div className="flex-1">
-                        <h4 className="font-bold text-xl mb-1 text-white group-hover:text-voltage-blue transition-colors">친구와 함께</h4>
-                        <p className="text-sm text-gray-400 mb-3">
+                        <h4 className="font-black text-3xl mb-2 text-white group-hover:text-voltage-blue transition-colors italic">친구와 함께</h4>
+                        <p className="text-lg text-gray-300 mb-4 font-medium">
                           1:1로 친구와 직접 대결하세요
                         </p>
                         {!generatedCode ? (
-                          <Button onClick={handleCreateWithCode} className="w-full bg-white hover:bg-gray-200 text-black border-0 font-bold shadow-lg shadow-voltage-blue/20">
+                          <Button onClick={handleCreateWithCode} className="w-full h-14 bg-white hover:bg-gray-200 text-black border-0 font-black text-xl shadow-lg shadow-voltage-blue/20">
                             초대 코드 생성
                           </Button>
                         ) : (
@@ -224,10 +211,9 @@ export function GameLobby({ onCreateGame, onJoinGame }: GameLobbyProps) {
                             </p>
                             <Button
                               onClick={() => onCreateGame('invite', generatedCode)}
-                              className="w-full bg-white hover:bg-gray-200 text-black border-0 font-bold shadow-lg shadow-voltage-blue/20"
-                              size="lg"
+                              className="w-full h-16 bg-white hover:bg-gray-200 text-black border-0 font-black text-2xl shadow-lg shadow-voltage-blue/20 mt-4"
                             >
-                              라인업 구성하기 <ArrowRight className="w-4 h-4 ml-2" />
+                              라인업 구성하기 <ArrowRight className="w-6 h-6 ml-2 stroke-[3]" />
                             </Button>
                           </div>
                         )}
@@ -242,32 +228,30 @@ export function GameLobby({ onCreateGame, onJoinGame }: GameLobbyProps) {
                         <Shuffle className="w-7 h-7 text-voltage-blue" />
                       </div>
                       <div className="flex-1">
-                        <h4 className="font-bold text-xl mb-1 text-white group-hover:text-voltage-blue transition-colors">랜덤 매칭</h4>
-                        <p className="text-sm text-gray-400 mb-3">
+                        <h4 className="font-black text-3xl mb-2 text-white group-hover:text-voltage-blue transition-colors italic">랜덤 매칭</h4>
+                        <p className="text-lg text-gray-300 mb-4 font-medium">
                           실력이 비슷한 상대와 자동 매칭됩니다
                         </p>
 
                         {!isMatching ? (
                           <Button
                             onClick={() => handleRandomMatch()}
-                            className="w-full bg-white hover:bg-gray-200 text-black border-0 font-bold shadow-lg shadow-voltage-blue/20"
-                            disabled={!playerName}
+                            className="w-full h-14 bg-white hover:bg-gray-200 text-black border-0 font-black text-xl shadow-lg shadow-voltage-blue/20"
                           >
-                            매칭 시작하기 <ArrowRight className="w-4 h-4 ml-2" />
+                            매칭 시작하기 <ArrowRight className="w-6 h-6 ml-2 stroke-[3]" />
                           </Button>
                         ) : (
-                          <div className="flex flex-col gap-2">
-                            <div className="flex items-center justify-center gap-2 text-white font-bold animate-pulse py-2">
-                              <Loader2 className="w-5 h-5 animate-spin text-cyber-yellow" />
-                              <span>{matchStatus === "MATCHED" ? "매칭 성공!" : "상대방 찾는 중..."}</span>
+                          <div className="flex flex-col gap-3 mt-4">
+                            <div className="flex items-center justify-center gap-3 text-white font-black animate-pulse py-3 bg-black/20 rounded-xl">
+                              <Loader2 className="w-7 h-7 animate-spin text-cyber-yellow" />
+                              <span className="text-xl">{matchStatus === "MATCHED" ? "매칭 성공!" : "상대방 찾는 중..."}</span>
                             </div>
                             <Button
                               variant="destructive"
                               onClick={cancelMatching}
-                              size="sm"
-                              className="w-full"
+                              className="w-full h-12 text-lg font-bold"
                             >
-                              <XCircle className="w-4 h-4 mr-2" /> 취소
+                              <XCircle className="w-5 h-5 mr-2" /> 매칭 취소
                             </Button>
                           </div>
                         )}
@@ -282,45 +266,31 @@ export function GameLobby({ onCreateGame, onJoinGame }: GameLobbyProps) {
             <TabsContent value="join">
               <div className="space-y-6">
 
-                {/* 플레이어 이름 입력 */}
                 <div>
-                  <label className="block text-sm font-bold mb-2 text-white">플레이어 이름</label>
-                  <Input
-                    type="text"
-                    placeholder="이름을 입력하세요"
-                    value={playerName}
-                    onChange={(e) => setPlayerName(e.target.value)}
-                    className="text-lg bg-black/40 border-white/20 text-white placeholder:text-gray-500 focus-visible:border-cyber-yellow focus-visible:ring-cyber-yellow"
-                  />
-                </div>
-
-                <div>
-                  {/* <h3 className="text-2xl font-bold mb-2 text-white">초대 코드로 참여</h3> */}
-                  <p className="text-lg mb-2 text-white">
+                  <p className="text-2xl mb-2 text-white font-black italic">
                     친구가 공유한 6자리 초대 코드를 입력하세요
                   </p>
                 </div>
 
                 {/* 초대 코드 입력 */}
                 <div>
-                  <label className="block text-sm font-bold mb-2 text-white">초대 코드</label>
+                  <label className="block text-xl font-black mb-3 text-white uppercase tracking-wider">초대 코드</label>
                   <Input
                     type="text"
                     placeholder="6자리 코드 입력"
                     value={inviteCode}
                     onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
                     maxLength={6}
-                    className="text-3xl text-center font-mono font-bold uppercase bg-black/60 border-cyber-yellow text-cyber-yellow focus-visible:border-cyber-yellow focus-visible:ring-cyber-yellow"
+                    className="text-2xl h-24 text-center font-mono font-black uppercase bg-black/60 border-cyber-yellow text-cyber-yellow focus-visible:border-cyber-yellow focus-visible:ring-cyber-yellow tracking-widest"
                   />
                 </div>
 
                 <Button
                   onClick={handleJoin}
-                  className="w-full bg-white hover:bg-gray-200 text-black font-bold border-0 shadow-lg shadow-cyber-yellow/20"
-                  size="lg"
-                  disabled={inviteCode.length !== 6 || !playerName}
+                  className="w-full h-16 bg-white hover:bg-gray-200 text-black font-black text-2xl border-0 shadow-lg shadow-cyber-yellow/20"
+                  disabled={inviteCode.length !== 6}
                 >
-                  게임 참여하기 <ArrowRight className="w-4 h-4 ml-2" />
+                  게임 참여하기 <ArrowRight className="w-6 h-6 ml-2 stroke-[3]" />
                 </Button>
 
                 <div className="pt-4 border-t border-white/10">
