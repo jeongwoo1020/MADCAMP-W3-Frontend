@@ -233,6 +233,7 @@ export function SimulationGame({
     initGame();
   }, [matchId]);
 
+
   const isMyTeamBatting = isHome !== matchInfo.is_top;
 
   const [gameLog, setGameLog] = useState<string[]>([]);
@@ -276,11 +277,12 @@ export function SimulationGame({
               ...info,
               match_id: info.matchId || info.match_id || matchId,
               score: info.score || prev.score,
-              is_top: info.top ?? info.is_top ?? prev.is_top,
+              is_top: info.isTop ?? info.top ?? info.is_top ?? prev.is_top,
               inning: info.inning || inning || prev.inning,
               ball_count: info.ballCount || info.ball_count || prev.ball_count,
               runners: info.runners || [null, null, null],
               currentBatter: info.currentBatterIndex ?? info.currentBatter ?? prev.currentBatter,
+              status: info.status || prev.status
             }));
           }
 
@@ -288,9 +290,9 @@ export function SimulationGame({
             setGameLog((prev) => [description, ...prev]);
           }
 
-          if (eventType === 'SIMULATION_END' || eventType === 'GAME_OVER') {
+          if (eventType === 'SIMULATION_END' || eventType === 'GAME_OVER' || eventType === 'AT_BAT_RESULT' || eventType === 'GAME_EVENT') {
             setIsSimulating(false);
-          } else if (eventType === 'AT_BAT' || eventType === 'BUNT' || eventType === 'STEAL') {
+          } else if (eventType === 'AT_BAT' || eventType === 'BUNT' || eventType === 'STEAL' || eventType === 'START_SIMULATION') {
             setIsSimulating(true);
           }
         });
@@ -403,6 +405,7 @@ export function SimulationGame({
         }),
       });
       setGameLog((prev) => [`[작전] 번트 명령 하달`, ...prev]);
+      setIsSimulating(true);
     }
   };
 
@@ -426,6 +429,7 @@ export function SimulationGame({
         }),
       });
       setGameLog((prev) => [`[작전] 고의사구 명령 하달`, ...prev]);
+      setIsSimulating(true);
     }
   };
 
@@ -451,8 +455,33 @@ export function SimulationGame({
       });
       const runner = matchInfo.runners[baseIndex];
       setGameLog((prev) => [`[작전] ${runner?.name || (baseIndex + 1) + '루 주자'} ${aggressive ? '적극적' : '일반'} 주루 명령 하달`, ...prev]);
+      setIsSimulating(true);
     }
     setShowBaseRunningDialog(false);
+  };
+
+  const handleSteal = () => {
+    console.log(`[DEBUG] Steal Requested - matchId: ${matchId}`);
+
+    if (stompClient.current?.connected) {
+      const userIdStr = localStorage.getItem('userId');
+      const userId = userIdStr ? Number(userIdStr) : 0;
+
+      stompClient.current.publish({
+        destination: `/app/match/${matchId}/command`,
+        body: JSON.stringify({
+          matchId: matchId,
+          senderId: userId,
+          type: 'MANAGEMENT',
+          inning: matchInfo.inning,
+          data: {
+            command: 'STEAL'
+          }
+        }),
+      });
+      setGameLog((prev) => [`[작전] 도루 시도 명령 하달`, ...prev]);
+      setIsSimulating(true);
+    }
   };
 
   const handlePinchHitter = (player: Hitter) => {
@@ -895,9 +924,16 @@ export function SimulationGame({
                 <Button
                   onClick={() => setShowBaseRunningDialog(true)}
                   disabled={!isMyTeamBatting || isSimulating || isGameOver || !matchInfo.runners.some(r => r !== null)}
-                  className="h-9 bg-slate-900 border-0 hover:bg-slate-800 text-white font-bold text-xs col-span-2"
+                  className="h-9 bg-slate-900 border-0 hover:bg-slate-800 text-white font-bold text-xs"
                 >
-                  주루/도루 지시
+                  주루 플레이
+                </Button>
+                <Button
+                  onClick={handleSteal}
+                  disabled={!isMyTeamBatting || isSimulating || isGameOver || !matchInfo.runners.some(r => r !== null)}
+                  className="h-9 bg-slate-900 border-0 hover:bg-slate-800 text-white font-bold text-xs"
+                >
+                  도루 시도
                 </Button>
               </div>
             </div>
