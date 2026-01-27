@@ -7,6 +7,9 @@ import { Users, Copy, Shuffle, ArrowRight, Loader2, XCircle } from 'lucide-react
 import { matchmakingService } from '@/app/lib/matchmaking';
 import { api } from '@/app/lib/api'; // ⭐ 추가
 import { useRef, useEffect } from 'react';
+// @ts-ignore
+import SockJS from 'sockjs-client';
+import { Client } from '@stomp/stompjs';
 
 interface GameLobbyProps {
   onCreateGame: (mode: 'friend' | 'invite' | 'random', matchId?: string) => void;
@@ -15,12 +18,14 @@ interface GameLobbyProps {
 
 export function GameLobby({ onCreateGame, onJoinGame }: GameLobbyProps) {
   const [inviteCode, setInviteCode] = useState('');
-  const [generatedCode, setGeneratedCode] = useState('');
+  const [matchId, setMatchId] = useState(''); // 내부 로직용 8자리 ID
+  const [displayInviteCode, setDisplayInviteCode] = useState(''); // 화면 표시용 6자리 코드
 
   // 매칭 관련 상태
   const [isMatching, setIsMatching] = useState(false);
   const [matchStatus, setMatchStatus] = useState("IDLE");
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  const lobbyStompClient = useRef<Client | null>(null);
 
   // 초대 코드 생성 /api/rooms POST
   const handleCreateWithCode = async () => {
@@ -29,8 +34,9 @@ export function GameLobby({ onCreateGame, onJoinGame }: GameLobbyProps) {
       const userId = userIdStr ? Number(userIdStr) : 1;
 
       const response = await api.post('/rooms', { user_id: userId });
-      setGeneratedCode(response.data.match_id);
-      console.log("✅ Room Created:", response.data.match_id);
+      setMatchId(response.data.match_id); // 내부 ID 저장
+      setDisplayInviteCode(response.data.invite_code); // 화면 표시용 코드 저장
+      console.log("✅ Room Created:", response.data.match_id, "Code:", response.data.invite_code);
     } catch (error) {
       console.error('Failed to create room:', error);
       alert('방 생성에 실패했습니다.');
@@ -38,9 +44,54 @@ export function GameLobby({ onCreateGame, onJoinGame }: GameLobbyProps) {
   };
 
   const handleCopyCode = () => {
-    navigator.clipboard.writeText(generatedCode);
+    navigator.clipboard.writeText(displayInviteCode);
     alert('초대 코드가 복사되었습니다!');
   };
+
+  // 호스트용 소켓 대기 로직 (게스트 입장 감지)
+  useEffect(() => {
+    if (!matchId) return;
+
+    // API URL 구성
+    // @ts-ignore
+    let apiUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:8080';
+    if (apiUrl.includes('host.docker.internal')) {
+      apiUrl = apiUrl.replace('host.docker.internal', 'localhost');
+    }
+    const socketUrl = `${apiUrl}/ws-baseball`;
+
+    const socket = new SockJS(socketUrl);
+    const client = new Client({
+      webSocketFactory: () => socket,
+      reconnectDelay: 5000,
+      onConnect: () => {
+        console.log(`📡 [Lobby] Host socket connected - room: ${matchId}`);
+
+        // 내 match_id 전용 채널 구독
+        client.subscribe(`/topic/room/${matchId}`, (message) => {
+          const data = JSON.parse(message.body);
+          console.log("📩 [Lobby] Message received:", data);
+
+          if (data.type === 'GUEST_JOINED') {
+            console.log("🚀 Guest joined! Moving to lineup.");
+            onCreateGame('invite', matchId);
+          }
+        });
+      },
+      onStompError: (frame) => {
+        console.error('STOMP error', frame);
+      }
+    });
+
+    client.activate();
+    lobbyStompClient.current = client;
+
+    // 클린업: 방을 나가거나 코드가 바뀌면 소켓 해제
+    return () => {
+      client.deactivate();
+      lobbyStompClient.current = null;
+    };
+  }, [matchId, onCreateGame]);
 
   const handleJoin = async () => {
     if (inviteCode.trim().length >= 4) {
@@ -190,7 +241,7 @@ export function GameLobby({ onCreateGame, onJoinGame }: GameLobbyProps) {
                         <p className="text-lg text-gray-300 mb-4 font-medium">
                           1:1로 친구와 직접 대결하세요
                         </p>
-                        {!generatedCode ? (
+                        {!displayInviteCode ? (
                           <Button onClick={handleCreateWithCode} className="w-full h-14 bg-white hover:bg-gray-200 text-black border-0 font-black text-xl shadow-lg shadow-voltage-blue/20">
                             초대 코드 생성
                           </Button>
@@ -198,7 +249,7 @@ export function GameLobby({ onCreateGame, onJoinGame }: GameLobbyProps) {
                           <div className="space-y-2">
                             <div className="flex gap-2">
                               <Input
-                                value={generatedCode}
+                                value={displayInviteCode}
                                 readOnly
                                 className="font-mono text-2xl text-center font-bold bg-black/60 border-voltage-blue text-voltage-blue"
                               />
@@ -210,7 +261,7 @@ export function GameLobby({ onCreateGame, onJoinGame }: GameLobbyProps) {
                               친구에게 이 코드를 공유하세요
                             </p>
                             <Button
-                              onClick={() => onCreateGame('invite', generatedCode)}
+                              onClick={() => onCreateGame('invite', matchId)}
                               className="w-full h-16 bg-white hover:bg-gray-200 text-black border-0 font-black text-2xl shadow-lg shadow-voltage-blue/20 mt-4"
                             >
                               라인업 구성하기 <ArrowRight className="w-6 h-6 ml-2 stroke-[3]" />
