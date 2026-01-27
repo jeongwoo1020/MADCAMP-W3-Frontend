@@ -28,7 +28,7 @@ import { BenchSlot } from "./lineup/BenchSlot";
 
 import { fetchAndAdaptPlayers } from "@/app/lib/playerAdapter";
 
-const MAX_CREDITS = 5000; // 최대 크레딧 (테스트용)
+const MAX_CREDITS = 200; // 최대 크레딧 (백엔드 밸런싱 기준)
 
 interface LineupBuilderProps {
   onLineupComplete: (lineup: Lineup) => void;
@@ -157,10 +157,10 @@ export function LineupBuilder({
     }
 
     // 크레딧 기준으로 정렬 (낮은 순)
-    allBatters.sort((a, b) => a.salary - b.salary);
-    allStarters.sort((a, b) => a.salary - b.salary);
-    allMiddles.sort((a, b) => a.salary - b.salary);
-    allClosers.sort((a, b) => a.salary - b.salary);
+    allBatters.sort((a, b) => a.credit - b.credit);
+    allStarters.sort((a, b) => a.credit - b.credit);
+    allMiddles.sort((a, b) => a.credit - b.credit);
+    allClosers.sort((a, b) => a.credit - b.credit);
 
     let totalCredits = 0;
     const selectedBatting: Player[] = [];
@@ -190,14 +190,14 @@ export function LineupBuilder({
       for (const player of allBatters) {
         if (
           !usedPlayerIds.has(String(player.id)) &&
-          totalCredits + player.salary <= MAX_CREDITS - 800 &&
+          totalCredits + player.credit <= MAX_CREDITS - 30 &&
           (player.position === position || position === "DH")
         ) {
           selectedPlayer = player;
           usedPlayerIds.add(String(player.id));
           selectedBatting.push(player);
           selectedFieldPositions[i] = position;
-          totalCredits += player.salary;
+          totalCredits += player.credit;
           break;
         }
       }
@@ -207,13 +207,13 @@ export function LineupBuilder({
         for (const player of allBatters) {
           if (
             !usedPlayerIds.has(String(player.id)) &&
-            totalCredits + player.salary <= MAX_CREDITS - 800
+            totalCredits + player.credit <= MAX_CREDITS - 30
           ) {
             selectedPlayer = player;
             usedPlayerIds.add(String(player.id));
             selectedBatting.push(player);
             selectedFieldPositions[i] = position;
-            totalCredits += player.salary;
+            totalCredits += player.credit;
             break;
           }
         }
@@ -225,22 +225,21 @@ export function LineupBuilder({
       for (const player of allBatters) {
         if (
           !usedPlayerIds.has(String(player.id)) &&
-          totalCredits + player.salary <= MAX_CREDITS - 300
+          totalCredits + player.credit <= MAX_CREDITS - 15
         ) {
           usedPlayerIds.add(String(player.id));
           selectedBench.push(player);
-          totalCredits += player.salary;
+          totalCredits += player.credit;
           break;
         }
       }
     }
 
-    // 투수 선택
     let selectedStarter: Player | null = null;
     for (const pitcher of allStarters) {
-      if (totalCredits + pitcher.salary <= MAX_CREDITS - 250) {
+      if (totalCredits + pitcher.credit <= MAX_CREDITS - 10) {
         selectedStarter = pitcher;
-        totalCredits += pitcher.salary;
+        totalCredits += pitcher.credit;
         break;
       }
     }
@@ -251,11 +250,11 @@ export function LineupBuilder({
       for (const pitcher of allMiddles) {
         if (
           !selectedMiddles.includes(pitcher) &&
-          totalCredits + pitcher.salary <=
-          MAX_CREDITS - 40 * (5 - i)
+          totalCredits + pitcher.credit <=
+          MAX_CREDITS - 5 * (5 - i)
         ) {
           selectedMiddles.push(pitcher);
-          totalCredits += pitcher.salary;
+          totalCredits += pitcher.credit;
           break;
         }
       }
@@ -264,9 +263,9 @@ export function LineupBuilder({
     // 마무리 선택
     let selectedCloser: Player | null = null;
     for (const pitcher of allClosers) {
-      if (totalCredits + pitcher.salary <= MAX_CREDITS) {
+      if (totalCredits + pitcher.credit <= MAX_CREDITS) {
         selectedCloser = pitcher;
-        totalCredits += pitcher.salary;
+        totalCredits += pitcher.credit;
         break;
       }
     }
@@ -309,21 +308,21 @@ export function LineupBuilder({
 
     // 타자
     lineup.batting.forEach((player) => {
-      if (player) total += (player as Player).salary;
+      if (player) total += (player as Player).credit;
     });
 
     // 투수
     if (lineup.pitchers.starter)
-      total += (lineup.pitchers.starter as Player).salary;
+      total += (lineup.pitchers.starter as Player).credit;
     lineup.pitchers.middle.forEach((player) => {
-      if (player) total += (player as Player).salary;
+      if (player) total += (player as Player).credit;
     });
     if (lineup.pitchers.closer)
-      total += (lineup.pitchers.closer as Player).salary;
+      total += (lineup.pitchers.closer as Player).credit;
 
     // 벤치
     lineup.bench.forEach((player) => {
-      if (player) total += (player as Player).salary;
+      if (player) total += (player as Player).credit;
     });
 
     return total;
@@ -348,9 +347,9 @@ export function LineupBuilder({
 
     // 크레딧 체크
     const currentPlayerCost =
-      lineup.batting[index]?.salary || 0;
+      lineup.batting[index]?.credit || 0;
     if (
-      usedCredits - currentPlayerCost + player.salary >
+      usedCredits - currentPlayerCost + player.credit >
       MAX_CREDITS
     ) {
       alert("크레딧이 부족합니다!");
@@ -373,9 +372,9 @@ export function LineupBuilder({
     }
 
     const currentPlayerCost =
-      lineup.pitchers.starter?.salary || 0;
+      lineup.pitchers.starter?.credit || 0;
     if (
-      usedCredits - currentPlayerCost + player.salary >
+      usedCredits - currentPlayerCost + player.credit >
       MAX_CREDITS
     ) {
       alert("크레딧이 부족합니다!");
@@ -403,9 +402,9 @@ export function LineupBuilder({
     }
 
     const currentPlayerCost =
-      lineup.pitchers.middle[index]?.salary || 0;
+      lineup.pitchers.middle[index]?.credit || 0;
     if (
-      usedCredits - currentPlayerCost + player.salary >
+      usedCredits - currentPlayerCost + player.credit >
       MAX_CREDITS
     ) {
       alert("크레딧이 부족합니다!");
@@ -430,9 +429,9 @@ export function LineupBuilder({
     }
 
     const currentPlayerCost =
-      lineup.pitchers.closer?.salary || 0;
+      lineup.pitchers.closer?.credit || 0;
     if (
-      usedCredits - currentPlayerCost + player.salary >
+      usedCredits - currentPlayerCost + player.credit >
       MAX_CREDITS
     ) {
       alert("크레딧이 부족합니다!");
@@ -456,9 +455,9 @@ export function LineupBuilder({
       return;
     }
 
-    const currentPlayerCost = lineup.bench[index]?.salary || 0;
+    const currentPlayerCost = lineup.bench[index]?.credit || 0;
     if (
-      usedCredits - currentPlayerCost + player.salary >
+      usedCredits - currentPlayerCost + player.credit >
       MAX_CREDITS
     ) {
       alert("크레딧이 부족합니다!");
