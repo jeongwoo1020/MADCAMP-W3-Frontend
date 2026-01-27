@@ -6,6 +6,7 @@ interface BaseballFieldProps {
   fieldPositions: (string | null)[];
   currentBatter: Player | null;
   currentPitcher: Player | null;
+  onPlayerClick?: (player: Player | null, position: string) => void;
 }
 
 // 수비 포지션별 좌표 (SVG viewBox 0-100 기준)
@@ -31,12 +32,14 @@ const PlayerMarker = ({
   player,
   label,
   isPitcher,
-  size = 'md'
+  size = 'md',
+  onClick
 }: {
   player: Player | null,
   label: string,
   isPitcher?: boolean,
-  size?: 'md' | 'lg'
+  size?: 'md' | 'lg',
+  onClick?: () => void
 }) => {
   const [imgError, setImgError] = useState(false);
 
@@ -45,7 +48,10 @@ const PlayerMarker = ({
   const borderClass = isPitcher ? 'border-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.4)]' : (size === 'lg' ? 'border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.6)]' : 'border-white shadow-xl');
 
   return (
-    <div className="flex flex-col items-center group/player cursor-pointer">
+    <div
+      className="flex flex-col items-center group/player cursor-pointer"
+      onClick={onClick}
+    >
       <div className="relative">
         <div className={`${sizeClasses} rounded-full border-2 overflow-hidden bg-slate-800 flex items-center justify-center transition-transform group-hover/player:scale-110 ${borderClass}`}>
           {player?.image_url && !imgError ? (
@@ -71,7 +77,7 @@ const PlayerMarker = ({
   );
 };
 
-export function BaseballField({ lineup, fieldPositions, currentBatter, currentPitcher }: BaseballFieldProps) {
+export function BaseballField({ lineup, fieldPositions, currentBatter, currentPitcher, onPlayerClick }: BaseballFieldProps) {
   // 수비 포지션별로 선수 매핑
   const getPlayerByPosition = (position: string) => {
     if (!fieldPositions || !lineup) {
@@ -123,13 +129,20 @@ export function BaseballField({ lineup, fieldPositions, currentBatter, currentPi
             className="absolute transform -translate-x-1/2 -translate-y-1/2 z-30 transition-all duration-500"
             style={{ left: `${coords.x}%`, top: `${coords.y}%` }}
           >
-            <PlayerMarker player={player} label={coords.label} isPitcher={position === 'P'} />
+            <PlayerMarker
+              player={player}
+              label={coords.label}
+              isPitcher={position === 'P'}
+              onClick={() => onPlayerClick?.(player, position)}
+            />
           </div>
         );
       })}
 
-      {/* 5. 현재 타자 마커 (홈플레이트 좌측 타석 배치) */}
-      <div className="absolute left-[34%] bottom-[5%] z-40 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <div
+        className="absolute left-[34%] bottom-[5%] z-40 animate-in fade-in slide-in-from-bottom-4 duration-700"
+        onClick={() => onPlayerClick?.(currentBatter, 'BATTER')}
+      >
         <PlayerMarker player={currentBatter} label="BATTER" size="lg" />
       </div>
     </div>

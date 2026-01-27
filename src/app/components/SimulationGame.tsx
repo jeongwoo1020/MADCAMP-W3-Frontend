@@ -127,7 +127,6 @@ const SimulationPlayerCard = ({
 export function SimulationGame({
   myLineup,
   opponentLineup,
-  stadium,
   isHome,
   matchId, // ⭐ Props에서 받음
   onGameEnd,
@@ -136,7 +135,7 @@ export function SimulationGame({
   const stompClient = useRef<Client | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
-  const [gameIsHome, setGameIsHome] = useState(isHome);
+  const [gameIsHome] = useState(isHome);
   const [localMyLineup, setLocalMyLineup] = useState<Lineup>(myLineup);
   const [localOpponentLineup, setLocalOpponentLineup] = useState<Lineup>(opponentLineup);
 
@@ -177,10 +176,13 @@ export function SimulationGame({
   const currentLineup = isMyTeamBatting ? localMyLineup : localOpponentLineup;
 
   // 현재 타자/투수 정보 실시간 동기화
-  const currentBatter = matchInfo.active_lineup.batting[matchInfo.currentBatter] || currentLineup.batting[matchInfo.currentBatter];
+  const currentBatter = (matchInfo.active_lineup.batting && matchInfo.active_lineup.batting[matchInfo.currentBatter]) || currentLineup.batting[matchInfo.currentBatter];
   const currentPitcher = matchInfo.active_lineup.pitcher || (isMyTeamBatting
     ? localOpponentLineup.pitchers.starter
     : localMyLineup.pitchers.starter);
+
+  console.log(`[DEBUG] Current Batter: ${currentBatter?.name}, currentBatterIdx: ${matchInfo.currentBatter}`);
+  console.log(`[DEBUG] Current Pitcher: ${currentPitcher?.name}`);
 
   const myTeam = localMyLineup.batting[0]?.team || '';
   const opponentTeam = localOpponentLineup.batting[0]?.team || '';
@@ -190,35 +192,6 @@ export function SimulationGame({
   // 게임 종료 체크
   const isGameOver = matchInfo.status === 'FINISHED' || matchInfo.inning > 9;
 
-  const handleStartGame = () => {
-    const userIdStr = localStorage.getItem('userId');
-    const userId = userIdStr ? Number(userIdStr) : 0;
-
-    console.log(`[DEBUG] Game Start Requested - matchId: ${matchId}, userId: ${userId}`);
-
-    if (!stompClient.current?.connected || isSimulating || isGameOver) {
-      console.warn(`[DEBUG] Cannot Start - connected: ${stompClient.current?.connected}, simulating: ${isSimulating}, gameOver: ${isGameOver}`);
-      return;
-    }
-
-    setIsSimulating(true);
-
-    // GameMessage structure for starting simulation
-    const payload = {
-      matchId: matchId,
-      senderId: userId,
-      type: 'START_SIMULATION',
-      inning: matchInfo.inning,
-      data: {}
-    };
-
-    console.log("[DEBUG] Sending START_SIMULATION payload:", payload);
-
-    stompClient.current.publish({
-      destination: `/app/match/${matchId}/command`,
-      body: JSON.stringify(payload),
-    });
-  };
 
 
   useEffect(() => {
@@ -238,13 +211,12 @@ export function SimulationGame({
           const userIdStr = localStorage.getItem('userId');
           const userId = userIdStr ? Number(userIdStr) : 0;
 
-          // 1. 선후공 정보 동기화
-          let isHomeUser = gameIsHome;
-          if (data.home_team && data.away_team) {
-            isHomeUser = data.home_team.user_id === userId;
-            setGameIsHome(isHomeUser);
-            console.log(`🏠 [DEBUG] Role synced via API: ${isHomeUser ? 'HOME' : 'AWAY'}`);
-          }
+          // 1. 역할 동기화 - 구조적(Host/Guest) 위치와 게임 내(Home/Away) 역할 분리
+          const structuralHomeId = data.home_team?.user_id;
+          const userIsStructuralHome = structuralHomeId === userId;
+
+          console.log(`🏠 [DEBUG] Structural Position: ${userIsStructuralHome ? 'HOST(Pos:Home)' : 'GUEST(Pos:Away)'}`);
+          console.log(`⚾ [DEBUG] Game Role Choice: ${gameIsHome ? 'HOME(후공)' : 'AWAY(선공)'}`);
 
           // 2. 라인업 정보 동기화 (ID -> 객체 매핑)
           const allMyPlayers = [
@@ -266,28 +238,48 @@ export function SimulationGame({
           const mapLineup = (apiLineup: any, playerPool: any[]) => {
             if (!apiLineup) return null;
 
-            const findById = (id: any) => playerPool.find(p => p.id === Number(id)) || null;
+            const findById = (id: any) => {
+              const targetId = Number(id);
+              if (isNaN(targetId)) return null;
+
+              return playerPool.find(p => {
+                const pId = typeof p.id === 'number' ? p.id : Number(String(p.id).replace(/[^0-9]/g, ''));
+                return pId === targetId;
+              }) || null;
+            };
+
+            // Backend may send batting_order or battingOrder depending on Jackson config
+            const battingOrder = apiLineup.batting_order || apiLineup.battingOrder || [];
+            const starters = apiLineup.starters || {};
+            const bullpen = apiLineup.bullpen || apiLineup.bull_pen || [];
+            const bench = apiLineup.bench || [];
+
+            const batting = battingOrder.map(findById);
+            console.log(`[DEBUG] Mapped batting order:`, batting.map((p: any) => p?.name || 'null'));
 
             return {
-              batting: (apiLineup.batting_order || []).map(findById),
+              batting: batting,
               pitchers: {
-                starter: findById(apiLineup.starters?.P),
-                middle: (apiLineup.bullpen || []).map(findById),
-                closer: null, // bullpen의 마지막이 closer일 수 있으나 일단 middle로 취급
+                starter: findById(starters.P),
+                middle: bullpen.map(findById),
+                closer: null,
               },
-              bench: (apiLineup.bench || []).map(findById),
-              fieldPositions: apiLineup.field_positions || (isHomeUser ? myLineup.fieldPositions : opponentLineup.fieldPositions),
-              hasDH: apiLineup.has_dh ?? true
+              bench: bench.map(findById),
+              fieldPositions: apiLineup.field_positions || apiLineup.fieldPositions || [],
+              hasDH: apiLineup.has_dh ?? apiLineup.hasDH ?? true
             } as Lineup;
           };
 
-          const syncedHomeLineup = mapLineup(data.home_lineup, isHomeUser ? allMyPlayers : allOpponentPlayers);
-          const syncedAwayLineup = mapLineup(data.away_lineup, isHomeUser ? allOpponentPlayers : allMyPlayers);
+          // 구조적 위치에 따라 내 선수들과 상대 선수들을 매핑
+          const syncedHomeLineup = mapLineup(data.home_lineup, userIsStructuralHome ? allMyPlayers : allOpponentPlayers);
+          const syncedAwayLineup = mapLineup(data.away_lineup, userIsStructuralHome ? allOpponentPlayers : allMyPlayers);
 
-          if (syncedHomeLineup && syncedAwayLineup) {
-            setLocalMyLineup(isHomeUser ? syncedHomeLineup : syncedAwayLineup);
-            setLocalOpponentLineup(isHomeUser ? syncedAwayLineup : syncedHomeLineup);
-            console.log("📋 [DEBUG] Lineups synchronized via API");
+          if (userIsStructuralHome) {
+            if (syncedHomeLineup) setLocalMyLineup(syncedHomeLineup);
+            if (syncedAwayLineup) setLocalOpponentLineup(syncedAwayLineup);
+          } else {
+            if (syncedAwayLineup) setLocalMyLineup(syncedAwayLineup);
+            if (syncedHomeLineup) setLocalOpponentLineup(syncedHomeLineup);
           }
 
           // 3. 경기 상태 업데이트
@@ -327,6 +319,25 @@ export function SimulationGame({
       debug: (str) => console.log(`[STOMP DEBUG] ${str}`), // ⭐ STOMP 디버그 로그 추가
       onConnect: () => {
         console.log(`✅ 경기장(${matchId}) 연결 성공!`);
+
+        // ⭐ 1. 소켓 연결 즉시 시뮬레이션 시작 요청 (자동화)
+        const userIdStr = localStorage.getItem('userId');
+        const userId = userIdStr ? Number(userIdStr) : 0;
+
+        console.log(`[DEBUG] Sending auto START_SIMULATION - matchId: ${matchId}, userId: ${userId}`);
+
+        client.publish({
+          destination: `/app/match/${matchId}/command`,
+          body: JSON.stringify({
+            matchId: matchId,
+            senderId: userId,
+            type: 'START_SIMULATION',
+            inning: matchInfo.inning,
+            data: {}
+          }),
+        });
+
+        setIsSimulating(true);
 
         // 2. 구독 (서버가 보내주는 결과 받기)
         client.subscribe(`/topic/match/${matchId}`, (message) => {
@@ -599,6 +610,13 @@ export function SimulationGame({
               fieldPositions={isMyTeamBatting ? localOpponentLineup.fieldPositions : localMyLineup.fieldPositions}
               currentBatter={currentBatter as any}
               currentPitcher={currentPitcher as any}
+              onPlayerClick={(player, pos) => {
+                console.log(`[DEBUG] Clicked player: ${player?.name} at pos: ${pos}`);
+                if (pos === 'P' || (pos === 'BATTER' && isMyTeamBatting)) {
+                  if (pos === 'P') setShowPitcherDialog(true);
+                  else setShowPinchHitterDialog(true);
+                }
+              }}
             />
           </div>
         </div>
@@ -885,18 +903,10 @@ export function SimulationGame({
               Management
             </h3>
             <div className="space-y-2">
-              {/* 경기 시작 버튼 */}
-              <Button
-                onClick={handleStartGame}
-                disabled={isSimulating || isGameOver}
-                className="w-full h-12 font-black text-base shadow-xl text-white border-0 transition-all hover:scale-[1.02] active:scale-[0.98]"
-                style={{
-                  backgroundColor: myTheme?.primary || '#22c55e',
-                  boxShadow: `0 0 20px ${myTheme?.primary}60`
-                }}
-              >
-                {isSimulating ? '경기 진행 중...' : '⚾ 경기 시작'}
-              </Button>
+              {/* 경기 정보 요약 (시작 버튼 제거됨) */}
+              <div className="w-full h-12 flex items-center justify-center font-black text-base rounded shadow-inner bg-black/5 text-slate-700">
+                {isSimulating ? '🚀 실시간 시뮬레이션 진행 중' : '⌛ 서버 연결 대기 중...'}
+              </div>
 
               <Separator className="my-2 bg-black/10" />
 
