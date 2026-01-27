@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { Lineup, MatchInfo, AtBatResult, Hitter, Pitcher, Stadium, MatchRecord } from '@/app/types';
+import { Lineup, MatchInfo, Hitter, Pitcher, Stadium, MatchRecord } from '@/app/types';
 import { Card } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { Badge } from '@/app/components/ui/badge';
-import { Progress } from '@/app/components/ui/progress';
 import { Separator } from '@/app/components/ui/separator';
 import { ScrollArea } from '@/app/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/components/ui/tabs';
@@ -18,7 +17,8 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/app/components/ui/dialog';
-import { Repeat, User, Users, TrendingUp, Target, Play, Pause } from 'lucide-react';
+import { Repeat, User, Users, Wind } from 'lucide-react';
+import { Switch } from '@/app/components/ui/switch';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 
@@ -31,21 +31,8 @@ interface SimulationGameProps {
   onGameEnd: (finalScore: { home: number; away: number }, history: MatchRecord[]) => void;
 }
 
-const PITCH_TYPES = [
-  { name: '직구', speed: 145 },
-  { name: '슬라이더', speed: 135 },
-  { name: '커브', speed: 120 },
-  { name: '체인지업', speed: 130 },
-  { name: '포크볼', speed: 125 },
-];
 
-interface PitchInfo {
-  type: string;
-  speed: number;
-  location: string;
-}
-
-// ⭐ 프리미엄 카드 컴포넌트 추가
+// management player card component
 const SimulationPlayerCard = ({
   player,
   onClick,
@@ -165,25 +152,22 @@ export function SimulationGame({
     pitches: 0,
     currentPitcher: {
       stamina: 100,
-      pitchTypes: PITCH_TYPES.map((p) => p.name),
+      pitchTypes: ['직구', '슬라이더', '커브', '체인지업', '포크볼'],
     },
   });
 
-  // const [isHomeTeam, setIsHomeTeam] = useState(!isHome);
   const isMyTeamBatting = isHome !== matchInfo.is_top;
 
-  const [lastResult, setLastResult] = useState<AtBatResult | null>(null);
   const [gameLog, setGameLog] = useState<string[]>([]);
-  const [matchRecords, setMatchRecords] = useState<MatchRecord[]>([]);
-  const [currentPitch, setCurrentPitch] = useState<PitchInfo | null>(null);
   const [isSimulating, setIsSimulating] = useState(false);
-  const [autoPlay, setAutoPlay] = useState(false);
 
   // Dialog states
   const [showPitcherDialog, setShowPitcherDialog] = useState(false);
   const [showPinchHitterDialog, setShowPinchHitterDialog] = useState(false);
   const [showPinchRunnerDialog, setShowPinchRunnerDialog] = useState(false);
+  const [showBaseRunningDialog, setShowBaseRunningDialog] = useState(false);
   const [selectedRunnerBase, setSelectedRunnerBase] = useState<0 | 1 | 2 | null>(null);
+  const [isAggressive, setIsAggressive] = useState(false);
 
   const currentLineup = isMyTeamBatting ? myLineup : opponentLineup;
   const currentBatter = currentLineup.batting[matchInfo.currentBatter];
@@ -197,196 +181,38 @@ export function SimulationGame({
   const opponentTheme = TEAM_THEMES[opponentTeam];
 
   // 게임 종료 체크
-  const isGameOver = matchInfo.inning > 9;
+  const isGameOver = matchInfo.status === 'FINISHED' || matchInfo.inning > 9;
 
-  // 투구 정보 생성
-  const generatePitch = (): PitchInfo => {
-    const pitch = PITCH_TYPES[Math.floor(Math.random() * PITCH_TYPES.length)];
-    const speedVariation = Math.floor(Math.random() * 10) - 5;
-    const locations = ['스트라이크 존', '볼 존 바깥쪽', '볼 존 안쪽', '높은 코스', '낮은 코스'];
-    return {
-      type: pitch.name,
-      speed: pitch.speed + speedVariation,
-      location: locations[Math.floor(Math.random() * locations.length)],
-    };
-  };
-
-  const simulateAtBat = (): AtBatResult => {
-    if (!currentBatter || !currentPitcher) {
-      return { type: 'out', description: '타자 정보 없음' };
-    }
-
-    const pitch = generatePitch();
-    setCurrentPitch(pitch);
-
-    const batterOBP = currentBatter.stats.obp || 0.3;
-    const batterAVG = (currentBatter as any).stats?.avg || (currentBatter as Hitter).avg || 0.250;
-    const pitcherWHIP = currentPitcher.stats.whip || 1.2;
-
-    const baseSuccess = batterOBP * (1 / pitcherWHIP);
-    const random = Math.random();
-
-    let result: AtBatResult;
-
-    if (random < baseSuccess * 0.15) {
-      result = {
-        type: 'homerun',
-        description: `${currentBatter.name}의 시원한 홈런! 담장을 넘어갑니다!`,
-      };
-    } else if (random < baseSuccess * 0.35) {
-      const isTriple = Math.random() < 0.2;
-      result = {
-        type: isTriple ? 'triple' : 'double',
-        description: `${currentBatter.name}의 깔끔한 ${isTriple ? '3루타' : '2루타'}!`,
-      };
-    } else if (random < baseSuccess) {
-      result = {
-        type: 'single',
-        description: `${currentBatter.name}의 안타! 주자가 진루합니다.`,
-      };
-    } else if (random < baseSuccess + 0.1) {
-      result = {
-        type: 'walk',
-        description: `${currentBatter.name}, 볼넷으로 출루!`,
-      };
-    } else if (random < 0.75) {
-      result = {
-        type: 'strikeout',
-        description: `${currentBatter.name}, 삼진 아웃!`,
-      };
-    } else {
-      result = {
-        type: 'out',
-        description: `${currentBatter.name}, 아웃!`,
-      };
-    }
-
-    // 투구 정보를 로그에 추가
-    const pitchLog = `${currentPitcher.name}: ${pitch.type} ${pitch.speed}km/h (${pitch.location})`;
-    setGameLog((prev) => [`[투구] ${pitchLog}`, ...prev]);
-
-    return result;
-  };
-
-  const updateGameState = (result: AtBatResult) => {
-    const newState = { ...matchInfo };
-    let runsScored = 0;
-
-    switch (result.type) {
-      case 'homerun':
-        runsScored = 1;
-        if (newState.runners[0]) runsScored++;
-        if (newState.runners[1]) runsScored++;
-        if (newState.runners[2]) runsScored++;
-        newState.runners = [null, null, null];
-        break;
-
-      case 'triple':
-        if (newState.runners[0]) runsScored++;
-        if (newState.runners[1]) runsScored++;
-        if (newState.runners[2]) runsScored++;
-        newState.runners = [null, null, currentBatter];
-        break;
-
-      case 'double':
-        if (newState.runners[1]) runsScored++;
-        if (newState.runners[2]) runsScored++;
-        newState.runners = [
-          null,
-          currentBatter,
-          newState.runners[0] ? currentBatter : null,
-        ];
-        break;
-
-      case 'single':
-        if (newState.runners[2]) runsScored++;
-        if (newState.runners[1]) runsScored++;
-        newState.runners = [
-          currentBatter,
-          newState.runners[0] ? currentBatter : null,
-          newState.runners[1] ? currentBatter : null,
-        ];
-        break;
-
-      case 'walk':
-        if (newState.runners[0] && newState.runners[1] && newState.runners[2]) {
-          runsScored++;
-        }
-        if (newState.runners[0] && newState.runners[1]) {
-          newState.runners[2] = currentBatter;
-        }
-        if (newState.runners[0]) {
-          newState.runners[1] = currentBatter;
-        }
-        newState.runners[0] = currentBatter;
-        break;
-
-      case 'out':
-      case 'strikeout':
-        newState.ball_count.o++;
-        if (newState.ball_count.o >= 3) {
-          newState.ball_count.o = 0;
-          newState.runners = [null, null, null];
-          newState.currentBatter = 0;
-
-          // Inning Flip Logic
-          if (newState.is_top) {
-            newState.is_top = false;
-          } else {
-            newState.is_top = true;
-            newState.inning++;
-          }
-        }
-        break;
-    }
-
-    if (runsScored > 0) {
-      if (matchInfo.is_top) {
-        newState.score.away += runsScored;
-      } else {
-        newState.score.home += runsScored;
-      }
-    }
-
-    if (result.type !== 'out' && result.type !== 'strikeout') {
-      newState.currentBatter = (newState.currentBatter + 1) % 9;
-    } else if (newState.ball_count.o < 3) {
-      newState.currentBatter = (newState.currentBatter + 1) % 9;
-    }
-
-    newState.pitches += Math.floor(Math.random() * 5) + 3;
-    newState.currentPitcher.stamina = Math.max(0, 100 - (newState.pitches / 100) * 100);
-
-    return newState;
-  };
-
-  const handlePitch = () => {
+  const handleStartGame = () => {
     const userIdStr = localStorage.getItem('userId');
     const userId = userIdStr ? Number(userIdStr) : 0;
 
-    console.log(`[DEBUG] Pitch Requested - matchId: ${matchId}, userId: ${userId}`);
+    console.log(`[DEBUG] Game Start Requested - matchId: ${matchId}, userId: ${userId}`);
 
     if (!stompClient.current?.connected || isSimulating || isGameOver) {
-      console.warn(`[DEBUG] Cannot Pitch - connected: ${stompClient.current?.connected}, simulating: ${isSimulating}, gameOver: ${isGameOver}`);
+      console.warn(`[DEBUG] Cannot Start - connected: ${stompClient.current?.connected}, simulating: ${isSimulating}, gameOver: ${isGameOver}`);
       return;
     }
 
     setIsSimulating(true);
 
+    // GameMessage structure for starting simulation
     const payload = {
       matchId: matchId,
-      type: 'PITCH',
       senderId: userId,
-      inning: matchInfo.inning
+      type: 'START_SIMULATION',
+      inning: matchInfo.inning,
+      data: {}
     };
 
-    console.log("[DEBUG] Sending PITCH payload:", payload);
+    console.log("[DEBUG] Sending START_SIMULATION payload:", payload);
 
     stompClient.current.publish({
       destination: `/app/match/${matchId}/command`,
       body: JSON.stringify(payload),
     });
   };
+
 
   useEffect(() => {
     // 1. 소켓 객체 생성
@@ -404,11 +230,13 @@ export function SimulationGame({
           const response = JSON.parse(message.body);
           console.log("[DEBUG] Response body:", response);
 
-          // 서버가 보내준 최신 경기 상태로 화면 동기화
-          if (response.matchInfo) {
-            const info = response.matchInfo;
+          // GameResponse structure: { eventType, description, data, inning, matchId }
+          const { eventType, description, data, inning } = response;
 
-            // 백엔드(Java/Kotlin) 객체를 프론트엔드 MatchInfo 타입으로 정밀 매핑
+          // 서버가 보내준 최신 경기 상태로 화면 동기화
+          if (data && data.matchInfo) {
+            const info = data.matchInfo;
+
             setMatchInfo(prev => {
               const updatedInfo = {
                 ...prev,
@@ -416,29 +244,31 @@ export function SimulationGame({
                 match_id: info.matchId || info.match_id || matchId,
                 score: info.score || prev.score,
                 is_top: info.top ?? info.is_top ?? prev.is_top,
-                inning: info.inning || prev.inning,
+                inning: info.inning || inning || prev.inning,
                 ball_count: info.ballCount || info.ball_count || prev.ball_count,
-                // 백엔드의 runnerIds(ID)를 프론트엔드의 Hitter 객체로 매핑
                 runners: (info.runners?.runnerIds || [null, null, null]).map((id: any) => {
                   if (id === null || id === undefined) return null;
                   const idNum = Number(id);
-                  return myLineup.batting.find(p => p?.id === idNum) ||
+                  return (myLineup.batting.find(p => p?.id === idNum) ||
                     opponentLineup.batting.find(p => p?.id === idNum) ||
-                    { id: idNum, name: '주자', team: '', position: '타자', image_url: '', stats: { avg: 0, ops: 0 } } as any;
+                    { id: idNum, name: '주자', team: '', position: '타자', image_url: '', stats: { avg: 0, ops: 0 } }) as any;
                 }),
                 currentBatter: info.currentBatterIndex ?? info.currentBatter ?? prev.currentBatter,
               };
-              console.log("[DEBUG] Updated matchInfo state:", updatedInfo);
+              console.log("[DEBUG] Updated matchInfo state via GameResponse:", updatedInfo);
               return updatedInfo;
             });
           }
 
           // 중계 멘트 추가
-          if (response.description) {
-            setGameLog((prev) => [response.description, ...prev]);
+          if (description) {
+            setGameLog((prev) => [description, ...prev]);
           }
 
-          setIsSimulating(false); // 투구 애니메이션 종료
+          // 시뮬레이션 종료 체크
+          if (eventType === 'SIMULATION_END' || eventType === 'GAME_OVER') {
+            setIsSimulating(false);
+          }
         });
       },
     });
@@ -446,25 +276,18 @@ export function SimulationGame({
     client.activate();
     stompClient.current = client;
 
-    return () => client.deactivate(); // 컴포넌트 나갈 때 연결 해제
+    return () => {
+      client.deactivate();
+    }; // 컴포넌트 나갈 때 연결 해제
   }, [matchId]);
 
-  // 자동 진행
-  useEffect(() => {
-    if (autoPlay && !isSimulating && !isGameOver) {
-      const timer = setTimeout(() => {
-        handlePitch();
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [autoPlay, isSimulating, matchInfo, isGameOver]);
+  // 자동 진행 로직 제거 (서버 푸시 모델)
 
   useEffect(() => {
     if (isGameOver) {
-      setAutoPlay(false);
-      onGameEnd(matchInfo.score, matchRecords);
+      onGameEnd(matchInfo.score, []);
     }
-  }, [isGameOver]);
+  }, [isGameOver, matchInfo.score, onGameEnd]);
 
   // 교체 핸들러들
   const handlePitcherChange = (pitcher: Pitcher) => {
@@ -478,8 +301,8 @@ export function SimulationGame({
         destination: `/app/match/${matchId}/command`,
         body: JSON.stringify({
           matchId: matchId,
-          type: 'SUBSTITUTION',
           senderId: userId,
+          type: 'MANAGEMENT',
           inning: matchInfo.inning,
           data: {
             command: 'SUBSTITUTION',
@@ -491,8 +314,58 @@ export function SimulationGame({
     }
 
     setGameLog((prev) => [`[교체] ${currentPitcher?.name} → ${pitcher.name} 투수 교체`, ...prev]);
-    // ... 생략 ...
+
     setShowPitcherDialog(false);
+  };
+
+  const handleBunt = () => {
+    console.log(`[DEBUG] Bunt Requested - matchId: ${matchId}`);
+
+    if (stompClient.current?.connected) {
+      const userIdStr = localStorage.getItem('userId');
+      const userId = userIdStr ? Number(userIdStr) : 0;
+
+      stompClient.current.publish({
+        destination: `/app/match/${matchId}/command`,
+        body: JSON.stringify({
+          matchId: matchId,
+          senderId: userId,
+          type: 'MANAGEMENT',
+          inning: matchInfo.inning,
+          data: {
+            command: 'BUNT'
+          }
+        }),
+      });
+      setGameLog((prev) => [`[작전] 번트 명령 하달`, ...prev]);
+    }
+  };
+
+  const handleBaseRunning = (baseIndex: 0 | 1 | 2, aggressive: boolean) => {
+    console.log(`[DEBUG] Base Running Requested - Base: ${baseIndex + 1}, Aggressive: ${aggressive}`);
+
+    if (stompClient.current?.connected) {
+      const userIdStr = localStorage.getItem('userId');
+      const userId = userIdStr ? Number(userIdStr) : 0;
+
+      stompClient.current.publish({
+        destination: `/app/match/${matchId}/command`,
+        body: JSON.stringify({
+          matchId: matchId,
+          senderId: userId,
+          type: 'MANAGEMENT',
+          inning: matchInfo.inning,
+          data: {
+            command: 'BASERUNNING',
+            base: baseIndex + 1,
+            is_aggressive: aggressive
+          }
+        }),
+      });
+      const runner = matchInfo.runners[baseIndex];
+      setGameLog((prev) => [`[작전] ${runner?.name || (baseIndex + 1) + '루 주자'} ${aggressive ? '적극적' : '일반'} 주루 명령 하달`, ...prev]);
+    }
+    setShowBaseRunningDialog(false);
   };
 
   const handlePinchHitter = (player: Hitter) => {
@@ -506,8 +379,8 @@ export function SimulationGame({
         destination: `/app/match/${matchId}/command`,
         body: JSON.stringify({
           matchId: matchId,
-          type: 'SUBSTITUTION',
           senderId: userId,
+          type: 'MANAGEMENT',
           inning: matchInfo.inning,
           data: {
             command: 'PINCH_HITTER',
@@ -534,8 +407,8 @@ export function SimulationGame({
         destination: `/app/match/${matchId}/command`,
         body: JSON.stringify({
           matchId: matchId,
-          type: 'SUBSTITUTION',
           senderId: userId,
+          type: 'MANAGEMENT',
           inning: matchInfo.inning,
           data: {
             command: 'PINCH_RUNNER',
@@ -583,10 +456,10 @@ export function SimulationGame({
         <div className="col-span-7 flex items-center justify-center overflow-hidden rounded-2xl bg-black/20 backdrop-blur-sm border border-white/5 shadow-2xl">
           <div className="w-full h-full flex items-center justify-center p-4">
             <BaseballField
-              lineup={isMyTeamBatting ? opponentLineup.batting : myLineup.batting}
+              lineup={currentLineup.batting as any}
               fieldPositions={isMyTeamBatting ? opponentLineup.fieldPositions : myLineup.fieldPositions}
-              currentBatter={currentBatter}
-              currentPitcher={currentPitcher}
+              currentBatter={currentBatter as any}
+              currentPitcher={currentPitcher as any}
             />
           </div>
         </div>
@@ -760,7 +633,7 @@ export function SimulationGame({
             {currentBatter && (
               <div className="relative">
                 {/* @ts-ignore - Player type compatibility */}
-                <BatterCard player={currentBatter} />
+                <BatterCard player={currentBatter as any} />
               </div>
             )}
             {/* Batting Context (Optional - could add Hot/Cold zones later) */}
@@ -817,10 +690,12 @@ export function SimulationGame({
                       </h4>
                       <div className="space-y-1">
                         {myLineup.batting.map((player, idx) => (
-                          <div key={idx} className="text-m p-2.5 bg-white/50 rounded border border-black/5 text-gray-800 flex justify-between">
-                            <span>{idx + 1}. {player.name} ({player.position})</span>
-                            <span className="text-blue-600 font-bold">{player.stats.avg.toFixed(3)}</span>
-                          </div>
+                          player ? (
+                            <div key={idx} className="text-m p-2.5 bg-white/50 rounded border border-black/5 text-gray-800 flex justify-between">
+                              <span>{idx + 1}. {player.name} ({player.position})</span>
+                              <span className="text-blue-600 font-bold">{(player as any).stats?.avg?.toFixed(3) || (player as any).avg?.toFixed(3) || '.000'}</span>
+                            </div>
+                          ) : null
                         ))}
                       </div>
                     </div>
@@ -847,10 +722,12 @@ export function SimulationGame({
                       </h4>
                       <div className="space-y-1">
                         {opponentLineup.batting.map((player, idx) => (
-                          <div key={idx} className="text-m p-2.5 bg-white/50 rounded border border-black/5 text-gray-800 flex justify-between">
-                            <span>{idx + 1}. {player.name} ({player.position})</span>
-                            <span className="text-blue-600 font-bold">{player.stats.avg.toFixed(3)}</span>
-                          </div>
+                          player ? (
+                            <div key={idx} className="text-m p-2.5 bg-white/50 rounded border border-black/5 text-gray-800 flex justify-between">
+                              <span>{idx + 1}. {player.name} ({player.position})</span>
+                              <span className="text-blue-600 font-bold">{(player as any).stats?.avg?.toFixed(3) || (player as any).avg?.toFixed(3) || '.000'}</span>
+                            </div>
+                          ) : null
                         ))}
                       </div>
                     </div>
@@ -869,9 +746,9 @@ export function SimulationGame({
               Management
             </h3>
             <div className="space-y-2">
-              {/* 투구 버튼 */}
+              {/* 경기 시작 버튼 */}
               <Button
-                onClick={handlePitch}
+                onClick={handleStartGame}
                 disabled={isSimulating || isGameOver}
                 className="w-full h-12 font-black text-base shadow-xl text-white border-0 transition-all hover:scale-[1.02] active:scale-[0.98]"
                 style={{
@@ -879,27 +756,7 @@ export function SimulationGame({
                   boxShadow: `0 0 20px ${myTheme?.primary}60`
                 }}
               >
-                {isSimulating ? '투구 중...' : '⚾ 투구'}
-              </Button>
-
-              {/* 자동 진행 */}
-              <Button
-                onClick={() => setAutoPlay(!autoPlay)}
-                disabled={isGameOver}
-                variant={autoPlay ? 'destructive' : 'default'}
-                className={`w-full h-10 font-bold text-sm ${autoPlay ? '' : 'bg-black hover:bg-gray-800 text-white'}`}
-              >
-                {autoPlay ? (
-                  <>
-                    <Pause className="w-4 h-4 mr-2" />
-                    중지
-                  </>
-                ) : (
-                  <>
-                    <Play className="w-4 h-4 mr-2" />
-                    자동
-                  </>
-                )}
+                {isSimulating ? '경기 진행 중...' : '⚾ 경기 시작'}
               </Button>
 
               <Separator className="my-2 bg-black/10" />
@@ -931,6 +788,25 @@ export function SimulationGame({
                 <User className="w-4 h-4 mr-1" style={{ color: myTheme?.primary }} />
                 대주자
               </Button>
+
+              <Separator className="my-2 bg-black/10" />
+
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  onClick={handleBunt}
+                  disabled={!isMyTeamBatting || isSimulating || isGameOver}
+                  className="h-9 bg-slate-900 border-0 hover:bg-slate-800 text-white font-bold text-xs"
+                >
+                  번트
+                </Button>
+                <Button
+                  onClick={() => setShowBaseRunningDialog(true)}
+                  disabled={!isMyTeamBatting || isSimulating || isGameOver || !matchInfo.runners.some(r => r !== null)}
+                  className="h-9 bg-slate-900 border-0 hover:bg-slate-800 text-white font-bold text-xs"
+                >
+                  주루/도루
+                </Button>
+              </div>
             </div>
           </Card>
         </div>
@@ -1007,6 +883,47 @@ export function SimulationGame({
                 />
               ) : null
             )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showBaseRunningDialog} onOpenChange={setShowBaseRunningDialog}>
+        <DialogContent className="max-w-md bg-slate-950/95 border-white/10 backdrop-blur-xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black text-white">주루 작전</DialogTitle>
+            <DialogDescription className="text-gray-400 font-bold">주루 명령을 내릴 베이스를 선택하세요</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6 py-4">
+            <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10">
+              <div className="flex items-center gap-3">
+                <Wind className="w-5 h-5 text-cyber-yellow" />
+                <div>
+                  <div className="text-white font-bold text-sm">적극적 주루/도루</div>
+                  <div className="text-[10px] text-gray-400">성공 확률이 변동되나 공격적인 진루를 시도합니다</div>
+                </div>
+              </div>
+              <Switch checked={isAggressive} onCheckedChange={setIsAggressive} />
+            </div>
+
+            <div className="grid grid-cols-1 gap-3">
+              {matchInfo.runners.map((runner, idx) => (
+                runner && (
+                  <Button
+                    key={idx}
+                    onClick={() => handleBaseRunning(idx as 0 | 1 | 2, isAggressive)}
+                    className="w-full h-16 bg-white/5 hover:bg-white/10 border-white/10 text-white flex justify-between px-6 transition-all border group"
+                  >
+                    <div className="flex flex-col items-start">
+                      <span className="text-[10px] text-gray-500 font-bold uppercase">{idx + 1}B RUNNER</span>
+                      <span className="font-black text-base">{runner.name}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] bg-cyber-yellow/20 text-cyber-yellow border border-cyber-yellow/30 px-2 py-0.5 rounded font-black">명령 하달</span>
+                    </div>
+                  </Button>
+                )
+              ))}
+            </div>
           </div>
         </DialogContent>
       </Dialog>
