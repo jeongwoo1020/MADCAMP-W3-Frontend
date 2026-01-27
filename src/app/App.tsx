@@ -120,20 +120,6 @@ function AppRoutes() {
   };
 
   const handleMyLineupComplete = async (lineup: Lineup) => {
-    // ID를 숫자로 변환하는 유틸리티
-    const toNumId = (id: any): number => {
-      if (typeof id === 'number') return id;
-      const sId = String(id);
-      const num = Number(sId.replace(/[^0-9]/g, ''));
-      if (!isNaN(num) && sId.match(/\d+/)) return num;
-      let hash = 0;
-      for (let i = 0; i < sId.length; i++) {
-        hash = (hash << 5) - hash + sId.charCodeAt(i);
-        hash |= 0;
-      }
-      return Math.abs(hash);
-    };
-
     setMyLineup(lineup);
 
     // ⭐ 백엔드에 라인업 저장
@@ -142,20 +128,20 @@ function AppRoutes() {
         // 수비 포지션 매핑 (starters Map 구성)
         const startersMap: Record<string, number> = {};
         if (lineup.pitchers.starter) {
-          startersMap["P"] = toNumId(lineup.pitchers.starter.id);
+          startersMap["P"] = lineup.pitchers.starter.id;
         }
 
         lineup.batting.forEach((player, idx) => {
           const pos = lineup.fieldPositions[idx];
           if (player && pos) {
-            startersMap[pos] = toNumId(player.id);
+            startersMap[pos] = player.id;
           }
         });
 
-        const userBench = lineup.bench.map(p => p ? toNumId(p.id) : 0).filter(id => id !== 0);
+        const userBench = lineup.bench.map(p => p ? p.id : 0).filter(id => id !== 0);
         const userBullpen = [
-          ...(lineup.pitchers.middle.map(p => p ? toNumId(p.id) : 0)),
-          lineup.pitchers.closer ? toNumId(lineup.pitchers.closer.id) : 0
+          ...(lineup.pitchers.middle.map(p => p ? p.id : 0)),
+          lineup.pitchers.closer ? lineup.pitchers.closer.id : 0
         ].filter(id => id !== 0);
 
         // 백엔드 SaveLineupRequest DTO 형식에 맞춤
@@ -163,15 +149,14 @@ function AppRoutes() {
           match_id: matchId,
           user_id: user.id,
           active_lineup: {
-            starters: Object.fromEntries(
-              Object.entries(startersMap).map(([pos, id]) => [pos, toNumId(id)])
-            ),
-            batting_order: lineup.batting.map(p => p ? toNumId(p.id) : 0).filter(id => id !== 0),
+            starters: startersMap,
+            batting_order: lineup.batting.map(p => p ? p.id : 0).filter(id => id !== 0),
             // 벤치 멤버 5명 필수 체크 및 부족 시 더미 데이터 추가
             bench: userBench.length >= 5
               ? userBench.slice(0, 5)
               : [...userBench, 101, 102, 103, 104, 105].slice(0, 5),
-            bullpen: userBullpen
+            bullpen: userBullpen,
+            has_dh: lineup.hasDH
           }
         };
 
@@ -191,30 +176,29 @@ function AppRoutes() {
       // ⭐ 2. 생성된 AI 라인업을 서버에 추가로 POST (개발 테스트용)
       try {
         const aiStartersMap: Record<string, number> = {};
-        if (opponent.pitchers.starter) aiStartersMap["P"] = toNumId(opponent.pitchers.starter.id);
+        if (opponent.pitchers.starter) aiStartersMap["P"] = opponent.pitchers.starter.id;
         opponent.batting.forEach((player, idx) => {
           const pos = opponent.fieldPositions[idx];
-          if (player && pos) aiStartersMap[pos] = toNumId(player.id);
+          if (player && pos) aiStartersMap[pos] = player.id;
         });
 
-        const aiBench = opponent.bench.map(p => p ? toNumId(p.id) : 0).filter(id => id !== 0);
+        const aiBench = opponent.bench.map(p => p ? p.id : 0).filter(id => id !== 0);
         const aiBullpen = [
-          ...(opponent.pitchers.middle.map(p => p ? toNumId(p.id) : 0)),
-          opponent.pitchers.closer ? toNumId(opponent.pitchers.closer.id) : 0
+          ...(opponent.pitchers.middle.map(p => p ? p.id : 0)),
+          opponent.pitchers.closer ? opponent.pitchers.closer.id : 0
         ].filter(id => id !== 0);
 
         const aiPayload = {
           match_id: matchId,
           user_id: 0, // AI 봇은 ID 0
           active_lineup: {
-            starters: Object.fromEntries(
-              Object.entries(aiStartersMap).map(([pos, id]) => [pos, toNumId(id)])
-            ),
-            batting_order: opponent.batting.map(p => p ? toNumId(p.id) : 0).filter(id => id !== 0),
+            starters: aiStartersMap,
+            batting_order: opponent.batting.map(p => p ? p.id : 0).filter(id => id !== 0),
             bench: aiBench.length >= 5
               ? aiBench.slice(0, 5)
               : [...aiBench, 201, 202, 203, 204, 205].slice(0, 5),
-            bullpen: aiBullpen
+            bullpen: aiBullpen,
+            has_dh: opponent.hasDH
           }
         };
 
