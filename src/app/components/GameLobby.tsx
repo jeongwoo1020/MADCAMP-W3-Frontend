@@ -29,8 +29,8 @@ export function GameLobby({ onCreateGame, onJoinGame }: GameLobbyProps) {
       const userId = userIdStr ? Number(userIdStr) : 1;
 
       const response = await api.post('/rooms', { user_id: userId });
-      setGeneratedCode(response.data.invite_code);
-      console.log("✅ Room Created, Invite Code:", response.data.invite_code);
+      setGeneratedCode(response.data.match_id);
+      console.log("✅ Room Created:", response.data.match_id);
     } catch (error) {
       console.error('Failed to create room:', error);
       alert('방 생성에 실패했습니다.');
@@ -50,7 +50,7 @@ export function GameLobby({ onCreateGame, onJoinGame }: GameLobbyProps) {
 
         // 백엔드에 Join 요청
         const response = await api.post('/rooms/join', {
-          invite_code: inviteCode,
+          match_id: inviteCode,
           guest_id: userId
         });
 
@@ -277,10 +277,10 @@ export function GameLobby({ onCreateGame, onJoinGame }: GameLobbyProps) {
                   <label className="block text-xl font-black mb-3 text-white uppercase tracking-wider">초대 코드</label>
                   <Input
                     type="text"
-                    placeholder="6자리 코드 입력"
+                    placeholder="코드 입력"
                     value={inviteCode}
                     onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-                    maxLength={6}
+                    maxLength={32}
                     className="text-2xl h-24 text-center font-mono font-black uppercase bg-black/60 border-cyber-yellow text-cyber-yellow focus-visible:border-cyber-yellow focus-visible:ring-cyber-yellow tracking-widest"
                   />
                 </div>
