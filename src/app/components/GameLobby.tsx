@@ -43,7 +43,7 @@ export function GameLobby({ onCreateGame, onJoinGame }: GameLobbyProps) {
   };
 
   const handleJoin = async () => {
-    if (inviteCode.length === 6) {
+    if (inviteCode.trim().length >= 4) {
       try {
         const userIdStr = localStorage.getItem('userId');
         const userId = userIdStr ? Number(userIdStr) : 1;
@@ -61,7 +61,7 @@ export function GameLobby({ onCreateGame, onJoinGame }: GameLobbyProps) {
         alert("방 참여에 실패했습니다. 코드를 확인해주세요.");
       }
     } else {
-      alert('6자리 초대 코드를 입력해주세요.');
+      alert('초대 코드를 입력해주세요.');
     }
   };
 
@@ -280,7 +280,7 @@ export function GameLobby({ onCreateGame, onJoinGame }: GameLobbyProps) {
                     placeholder="6자리 코드 입력"
                     value={inviteCode}
                     onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-                    maxLength={6}
+                    maxLength={32} // UUID나 긴 ID 대응을 위해 확장
                     className="text-2xl h-24 text-center font-mono font-black uppercase bg-black/60 border-cyber-yellow text-cyber-yellow focus-visible:border-cyber-yellow focus-visible:ring-cyber-yellow tracking-widest"
                   />
                 </div>
@@ -288,7 +288,7 @@ export function GameLobby({ onCreateGame, onJoinGame }: GameLobbyProps) {
                 <Button
                   onClick={handleJoin}
                   className="w-full h-16 bg-white hover:bg-gray-200 text-black font-black text-2xl border-0 shadow-lg shadow-cyber-yellow/20"
-                  disabled={inviteCode.length !== 6}
+                  disabled={inviteCode.trim().length < 4}
                 >
                   게임 참여하기 <ArrowRight className="w-6 h-6 ml-2 stroke-[3]" />
                 </Button>

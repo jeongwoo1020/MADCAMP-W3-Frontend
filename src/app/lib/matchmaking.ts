@@ -10,7 +10,7 @@ export interface MatchStatusResponse {
 export const matchmakingService = {
     // 대기열 참가
     joinQueue: async (userId: number): Promise<{ status: string }> => {
-        const response = await api.post('/matchmaking', { userId });
+        const response = await api.post('/matchmaking', { user_id: userId });
         return response.data;
     },
 

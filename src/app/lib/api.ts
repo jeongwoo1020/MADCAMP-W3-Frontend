@@ -4,7 +4,7 @@ import axios from 'axios';
 export const api = axios.create({
     baseURL: '/api', // 개발 환경에서는 프록시가 처리, 배포 시에는 절대 경로 사용
     headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/json; charset=UTF-8',
     },
     withCredentials: true, // 세션 쿠키 사용 시 필요
 });
