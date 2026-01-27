@@ -6,7 +6,7 @@ import { Badge } from '@/app/components/ui/badge';
 import { Separator } from '@/app/components/ui/separator';
 import { ScrollArea } from '@/app/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/components/ui/tabs';
-import { TEAM_THEMES } from '@/app/data/teamThemes';
+import { TEAM_THEMES, getFullTeamName } from '@/app/data/teamThemes';
 import { BaseballField } from '@/app/components/BaseballField';
 import { PitcherCard } from '@/app/components/lineup/PitcherCard';
 import { BatterCard } from '@/app/components/lineup/BatterCard';
@@ -294,6 +294,24 @@ export function SimulationGame({
             setIsSimulating(true);
           }
         });
+
+        // ⭐ 연결 성공 시 자동으로 START 명령 전송
+        const userIdStr = localStorage.getItem('userId');
+        const userId = userIdStr ? Number(userIdStr) : 0;
+
+        console.log(`[DEBUG] Automating Game Start - matchId: ${matchId}, userId: ${userId}`);
+        setIsSimulating(true);
+
+        client.publish({
+          destination: `/app/match/${matchId}/command`,
+          body: JSON.stringify({
+            matchId: matchId,
+            senderId: userId,
+            type: 'START_SIMULATION',
+            inning: 1,
+            data: {}
+          }),
+        });
       },
     });
 
@@ -331,30 +349,9 @@ export function SimulationGame({
   const currentPitcher = defenseLineup.pitchers.starter;
 
   // 현재 팀 정보 (API 데이터 기준)
-  const myTeam = myCurrentLineup?.batting[0]?.team || '우리팀';
-  const opponentTeam = opponentCurrentLineup?.batting[0]?.team || '상대팀';
+  const myTeam = getFullTeamName(myCurrentLineup?.batting[0]?.team || '우리팀');
+  const opponentTeam = getFullTeamName(opponentCurrentLineup?.batting[0]?.team || '상대팀');
 
-  const handleStartGame = () => {
-    const userIdStr = localStorage.getItem('userId');
-    const userId = userIdStr ? Number(userIdStr) : 0;
-
-    console.log(`[DEBUG] Game Start Requested - matchId: ${matchId}, userId: ${userId}`);
-
-    if (isGameOver) return; // 사용 전 체크
-
-    setIsSimulating(true);
-
-    stompClient.current?.publish({
-      destination: `/app/match/${matchId}/command`,
-      body: JSON.stringify({
-        matchId: matchId,
-        senderId: userId,
-        type: 'START_SIMULATION',
-        inning: matchInfo.inning,
-        data: {}
-      }),
-    });
-  };
 
 
   // 교체 핸들러들
@@ -847,18 +844,6 @@ export function SimulationGame({
               Management
             </h3>
             <div className="space-y-2">
-              {/* 경기 시작 버튼 */}
-              <Button
-                onClick={handleStartGame}
-                disabled={isSimulating || isGameOver}
-                className="w-full h-12 font-black text-base shadow-xl text-white border-0 transition-all hover:scale-[1.02] active:scale-[0.98]"
-                style={{
-                  backgroundColor: myTheme?.primary || '#22c55e',
-                  boxShadow: `0 0 20px ${myTheme?.primary}60`
-                }}
-              >
-                {isSimulating ? '경기 진행 중...' : '⚾ 경기 시작'}
-              </Button>
 
               <Separator className="my-2 bg-black/10" />
 

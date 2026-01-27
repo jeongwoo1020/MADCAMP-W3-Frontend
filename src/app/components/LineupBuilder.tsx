@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { Player, Lineup } from "@/app/types";
-import { TEAM_THEMES } from "@/app/data/teamThemes";
+import { Player, Lineup, Hitter, Pitcher } from "@/app/types";
+import { TEAM_THEMES, getFullTeamName } from "@/app/data/teamThemes";
 import { MOCK_PLAYERS } from "@/app/data/mockPlayers";
 import { Card } from "@/app/components/ui/card";
 import { Button } from "@/app/components/ui/button";
@@ -308,21 +308,21 @@ export function LineupBuilder({
 
     // 타자
     lineup.batting.forEach((player) => {
-      if (player) total += (player as Player).credit;
+      if (player) total += (player as any).credit || (player as any).salary || 0;
     });
 
     // 투수
     if (lineup.pitchers.starter)
-      total += (lineup.pitchers.starter as Player).credit;
+      total += (lineup.pitchers.starter as any).credit || (lineup.pitchers.starter as any).salary || 0;
     lineup.pitchers.middle.forEach((player) => {
-      if (player) total += (player as Player).credit;
+      if (player) total += (player as any).credit || (player as any).salary || 0;
     });
     if (lineup.pitchers.closer)
-      total += (lineup.pitchers.closer as Player).credit;
+      total += (lineup.pitchers.closer as any).credit || (lineup.pitchers.closer as any).salary || 0;
 
     // 벤치
     lineup.bench.forEach((player) => {
-      if (player) total += (player as Player).credit;
+      if (player) total += (player as any).credit || (player as any).salary || 0;
     });
 
     return total;
@@ -347,7 +347,7 @@ export function LineupBuilder({
 
     // 크레딧 체크
     const currentPlayerCost =
-      lineup.batting[index]?.credit || 0;
+      (lineup.batting[index] as any)?.credit || (lineup.batting[index] as any)?.salary || 0;
     if (
       usedCredits - currentPlayerCost + player.credit >
       MAX_CREDITS
@@ -357,7 +357,7 @@ export function LineupBuilder({
     }
 
     const newBatting = [...lineup.batting];
-    newBatting[index] = player;
+    newBatting[index] = player as any;
     setLineup({ ...lineup, batting: newBatting });
   };
 
@@ -372,7 +372,7 @@ export function LineupBuilder({
     }
 
     const currentPlayerCost =
-      lineup.pitchers.starter?.credit || 0;
+      (lineup.pitchers.starter as any)?.credit || (lineup.pitchers.starter as any)?.salary || 0;
     if (
       usedCredits - currentPlayerCost + player.credit >
       MAX_CREDITS
@@ -382,7 +382,7 @@ export function LineupBuilder({
     }
     setLineup({
       ...lineup,
-      pitchers: { ...lineup.pitchers, starter: player },
+      pitchers: { ...lineup.pitchers, starter: player as any },
     });
   };
 
@@ -402,7 +402,7 @@ export function LineupBuilder({
     }
 
     const currentPlayerCost =
-      lineup.pitchers.middle[index]?.credit || 0;
+      (lineup.pitchers.middle[index] as any)?.credit || (lineup.pitchers.middle[index] as any)?.salary || 0;
     if (
       usedCredits - currentPlayerCost + player.credit >
       MAX_CREDITS
@@ -411,7 +411,7 @@ export function LineupBuilder({
       return;
     }
     const newMiddle = [...lineup.pitchers.middle];
-    newMiddle[index] = player;
+    newMiddle[index] = player as any;
     setLineup({
       ...lineup,
       pitchers: { ...lineup.pitchers, middle: newMiddle },
@@ -429,7 +429,7 @@ export function LineupBuilder({
     }
 
     const currentPlayerCost =
-      lineup.pitchers.closer?.credit || 0;
+      (lineup.pitchers.closer as any)?.credit || (lineup.pitchers.closer as any)?.salary || 0;
     if (
       usedCredits - currentPlayerCost + player.credit >
       MAX_CREDITS
@@ -439,7 +439,7 @@ export function LineupBuilder({
     }
     setLineup({
       ...lineup,
-      pitchers: { ...lineup.pitchers, closer: player },
+      pitchers: { ...lineup.pitchers, closer: player as any },
     });
   };
 
@@ -455,7 +455,7 @@ export function LineupBuilder({
       return;
     }
 
-    const currentPlayerCost = lineup.bench[index]?.credit || 0;
+    const currentPlayerCost = (lineup.bench[index] as any)?.credit || (lineup.bench[index] as any)?.salary || 0;
     if (
       usedCredits - currentPlayerCost + player.credit >
       MAX_CREDITS
@@ -464,7 +464,7 @@ export function LineupBuilder({
       return;
     }
     const newBench = [...lineup.bench];
-    newBench[index] = player;
+    newBench[index] = player as any;
     setLineup({ ...lineup, bench: newBench });
   };
 
@@ -615,7 +615,8 @@ export function LineupBuilder({
                       className="w-full space-y-4"
                     >
                       {TEAMS.map((team) => {
-                        const theme = TEAM_THEMES[team] || {
+                        const fullTeamName = getFullTeamName(team);
+                        const theme = TEAM_THEMES[fullTeamName] || {
                           primary: "#333",
                         };
                         const players =
@@ -635,8 +636,8 @@ export function LineupBuilder({
                                 {/* Team Logo */}
                                 <div className="w-16 h-16 flex-shrink-0 relative flex items-center justify-center">
                                   <img
-                                    src={`/assets/logos/${team.trim()}.png`}
-                                    alt={`${team} logo`}
+                                    src={`/assets/logos/${fullTeamName.trim()}.png`}
+                                    alt={`${fullTeamName} logo`}
                                     className="w-full h-full object-contain drop-shadow-md"
                                     onError={(e) => {
                                       e.currentTarget.style.display = 'none';
@@ -650,12 +651,12 @@ export function LineupBuilder({
                                       backgroundColor: theme.primary,
                                     }}
                                   >
-                                    {team.trim()[0]}
+                                    {fullTeamName.trim()[0]}
                                   </div>
                                 </div>
 
                                 <span className="font-black text-2xl tracking-tight">
-                                  {team}
+                                  {fullTeamName}
                                 </span>
                                 <Badge
                                   variant="secondary"
@@ -691,7 +692,8 @@ export function LineupBuilder({
                       className="w-full space-y-4"
                     >
                       {TEAMS.map((team) => {
-                        const theme = TEAM_THEMES[team] || {
+                        const fullTeamName = getFullTeamName(team);
+                        const theme = TEAM_THEMES[fullTeamName] || {
                           primary: "#333",
                         };
                         const players =
@@ -722,8 +724,8 @@ export function LineupBuilder({
                                 {/* Team Logo */}
                                 <div className="w-16 h-16 flex-shrink-0 relative flex items-center justify-center">
                                   <img
-                                    src={`/assets/logos/${team.trim()}.png`}
-                                    alt={`${team} logo`}
+                                    src={`/assets/logos/${fullTeamName.trim()}.png`}
+                                    alt={`${fullTeamName} logo`}
                                     className="w-full h-full object-contain drop-shadow-md"
                                     onError={(e) => {
                                       e.currentTarget.style.display = 'none';
@@ -737,12 +739,12 @@ export function LineupBuilder({
                                       backgroundColor: theme.primary,
                                     }}
                                   >
-                                    {team.trim()[0]}
+                                    {fullTeamName.trim()[0]}
                                   </div>
                                 </div>
 
                                 <span className="font-black text-2xl tracking-tight">
-                                  {team}
+                                  {fullTeamName}
                                 </span>
                                 <Badge
                                   variant="secondary"
@@ -867,11 +869,11 @@ export function LineupBuilder({
                       <LineupSlot
                         key={`batter-${index}`}
                         index={index}
-                        player={player as Player}
+                        player={player as any}
                         fieldPosition={
                           lineup.fieldPositions[index]
                         }
-                        onDrop={handleBatterDrop}
+                        onDrop={handleBatterDrop as any}
                         onRemove={() =>
                           handleBatterDrop(null, index)
                         }
@@ -914,8 +916,8 @@ export function LineupBuilder({
                 <AccordionContent className="p-4 bg-white/30 border border-white/20 border-t-0 rounded-b-lg">
                   <div className="space-y-2">
                     <PitcherSlot
-                      player={lineup.pitchers.starter}
-                      onDrop={handleStarterDrop}
+                      player={lineup.pitchers.starter as any}
+                      onDrop={handleStarterDrop as any}
                       onRemove={() => handleStarterDrop(null)}
                       role="starter"
                       label="선발 투수 (SP)"
@@ -925,9 +927,9 @@ export function LineupBuilder({
                         (player, index) => (
                           <PitcherSlot
                             key={`middle-${index}`}
-                            player={player}
+                            player={player as any}
                             onDrop={(p) =>
-                              handleMiddleDrop(p, index)
+                              handleMiddleDrop(p as any, index)
                             }
                             onRemove={() =>
                               handleMiddleDrop(null, index)
@@ -939,8 +941,8 @@ export function LineupBuilder({
                       )}
                     </div>
                     <PitcherSlot
-                      player={lineup.pitchers.closer}
-                      onDrop={handleCloserDrop}
+                      player={lineup.pitchers.closer as any}
+                      onDrop={handleCloserDrop as any}
                       onRemove={() => handleCloserDrop(null)}
                       role="closer"
                       label="마무리 투수 (CP)"
@@ -965,8 +967,8 @@ export function LineupBuilder({
                       <BenchSlot
                         key={`bench-${index}`}
                         index={index}
-                        player={player}
-                        onDrop={handleBenchDrop}
+                        player={player as any}
+                        onDrop={handleBenchDrop as any}
                         onRemove={() =>
                           handleBenchDrop(null, index)
                         }
