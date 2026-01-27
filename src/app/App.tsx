@@ -17,6 +17,7 @@ import { SimulationGame } from "@/app/components/SimulationGame";
 import { GameResult } from "@/app/components/GameResult";
 import { VSPage } from "@/app/components/vs";
 import { MOCK_PLAYERS } from "@/app/data/mockPlayers";
+import { api } from "@/app/lib/api";
 
 function AppRoutes() {
   const navigate = useNavigate();
@@ -119,83 +120,114 @@ function AppRoutes() {
   };
 
   const handleMyLineupComplete = async (lineup: Lineup) => {
+    // ID를 숫자로 변환하는 유틸리티
+    const toNumId = (id: any): number => {
+      if (typeof id === 'number') return id;
+      const sId = String(id);
+      const num = Number(sId.replace(/[^0-9]/g, ''));
+      if (!isNaN(num) && sId.match(/\d+/)) return num;
+      let hash = 0;
+      for (let i = 0; i < sId.length; i++) {
+        hash = (hash << 5) - hash + sId.charCodeAt(i);
+        hash |= 0;
+      }
+      return Math.abs(hash);
+    };
+
     setMyLineup(lineup);
 
     // ⭐ 백엔드에 라인업 저장
     if (matchId && user) {
       try {
-        // @ts-ignore
-        let apiUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:8080';
-
-        // 브라우저에서는 host.docker.internal을 해석할 수 없으므로 localhost로 변환
-        if (apiUrl.includes('host.docker.internal')) {
-          apiUrl = apiUrl.replace('host.docker.internal', 'localhost');
-        }
-
         // 수비 포지션 매핑 (starters Map 구성)
         const startersMap: Record<string, number> = {};
-
-        // 1. 투수 매핑
         if (lineup.pitchers.starter) {
-          startersMap["P"] = Number(lineup.pitchers.starter.id);
+          startersMap["P"] = toNumId(lineup.pitchers.starter.id);
         }
 
-        // 2. 타자 수비 포지션 매핑
         lineup.batting.forEach((player, idx) => {
           const pos = lineup.fieldPositions[idx];
           if (player && pos) {
-            startersMap[pos] = Number(player.id);
+            startersMap[pos] = toNumId(player.id);
           }
         });
+
+        const userBench = lineup.bench.map(p => p ? toNumId(p.id) : 0).filter(id => id !== 0);
+        const userBullpen = [
+          ...(lineup.pitchers.middle.map(p => p ? toNumId(p.id) : 0)),
+          lineup.pitchers.closer ? toNumId(lineup.pitchers.closer.id) : 0
+        ].filter(id => id !== 0);
 
         // 백엔드 SaveLineupRequest DTO 형식에 맞춤
         const payload = {
           match_id: matchId,
-          user_id: user.id, // 유저 ID 포함 (이미 백엔드에 수정됨)
+          user_id: user.id,
           active_lineup: {
-            starters: startersMap,
-            batting_order: lineup.batting.map(p => p ? p.id : 0),
-            bench: lineup.bench.map(p => p ? p.id : 0).filter(id => id !== 0),
-            bullpen: [
-              ...(lineup.pitchers.middle.map(p => p ? p.id : 0)),
-              lineup.pitchers.closer ? lineup.pitchers.closer.id : 0
-            ].filter(id => id !== 0)
+            starters: Object.fromEntries(
+              Object.entries(startersMap).map(([pos, id]) => [pos, toNumId(id)])
+            ),
+            batting_order: lineup.batting.map(p => p ? toNumId(p.id) : 0).filter(id => id !== 0),
+            // 벤치 멤버 5명 필수 체크 및 부족 시 더미 데이터 추가
+            bench: userBench.length >= 5
+              ? userBench.slice(0, 5)
+              : [...userBench, 101, 102, 103, 104, 105].slice(0, 5),
+            bullpen: userBullpen
           }
         };
 
-        console.log("DEBUG: Sending lineup to:", apiUrl);
-        console.log("Team Lineup POST Payload:", payload);
-
-        const response = await fetch(`${apiUrl}/api/team/lineup`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload)
-        });
-
-        if (response.ok) {
-          const result = await response.json();
-          console.log("Lineup saved successfully!", result);
-        } else {
-          console.error("Lineup save failed with status:", response.status);
-          const errorText = await response.text();
-          console.error("Error response details:", errorText);
-        }
+        console.log("🚀 [DEBUG] Sending User Lineup:", payload);
+        await api.post('/team/lineup', payload);
+        console.log("✅ [DEBUG] User Lineup saved successfully!");
       } catch (e) {
-        console.error("Failed to save lineup:", e);
+        console.error("❌ [DEBUG] Failed to save lineup:", e);
       }
     }
 
     if (gameMode === "random") {
-      // 랜덤 모드는 상대방이 이미 있다고 가정 (혹은 기다림)
-      // 여기선 일단 AI로 채움 (나중에 백엔드에서 받아와야 함)
+      // 1. 가짜 AI 라인업 생성 및 상태 저장
       const opponent = generateOpponentLineup();
       setOpponentLineup(opponent);
+
+      // ⭐ 2. 생성된 AI 라인업을 서버에 추가로 POST (개발 테스트용)
+      try {
+        const aiStartersMap: Record<string, number> = {};
+        if (opponent.pitchers.starter) aiStartersMap["P"] = toNumId(opponent.pitchers.starter.id);
+        opponent.batting.forEach((player, idx) => {
+          const pos = opponent.fieldPositions[idx];
+          if (player && pos) aiStartersMap[pos] = toNumId(player.id);
+        });
+
+        const aiBench = opponent.bench.map(p => p ? toNumId(p.id) : 0).filter(id => id !== 0);
+        const aiBullpen = [
+          ...(opponent.pitchers.middle.map(p => p ? toNumId(p.id) : 0)),
+          opponent.pitchers.closer ? toNumId(opponent.pitchers.closer.id) : 0
+        ].filter(id => id !== 0);
+
+        const aiPayload = {
+          match_id: matchId,
+          user_id: 0, // AI 봇은 ID 0
+          active_lineup: {
+            starters: Object.fromEntries(
+              Object.entries(aiStartersMap).map(([pos, id]) => [pos, toNumId(id)])
+            ),
+            batting_order: opponent.batting.map(p => p ? toNumId(p.id) : 0).filter(id => id !== 0),
+            bench: aiBench.length >= 5
+              ? aiBench.slice(0, 5)
+              : [...aiBench, 201, 202, 203, 204, 205].slice(0, 5),
+            bullpen: aiBullpen
+          }
+        };
+
+        console.log("🚀 [DEBUG] Sending AI Lineup:", aiPayload);
+        await api.post('/team/lineup', aiPayload);
+        console.log("✅ [DEBUG] AI 라인업 서버 등록 완료");
+      } catch (e) {
+        console.error("❌ [DEBUG] AI 라인업 등록 실패:", e);
+      }
       navigate("/setup");
     } else {
+      // 친구 모드 등 기존 로직 유지
       setTimeout(() => {
-        // TODO: 친구가 라인업을 완성할 때까지 대기
         if (!opponentLineup) {
           const opponent = generateOpponentLineup();
           setOpponentLineup(opponent);
@@ -292,10 +324,11 @@ function AppRoutes() {
         <Route
           path="/setup"
           element={
-            user && myLineup && opponentLineup ? (
+            user && myLineup && opponentLineup && matchId ? (
               <GameSetup
                 myLineup={myLineup}
                 opponentLineup={opponentLineup}
+                matchId={matchId}
                 onGameStart={handleGameStart}
               />
             ) : (

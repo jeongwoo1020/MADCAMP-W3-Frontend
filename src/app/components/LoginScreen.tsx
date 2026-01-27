@@ -126,16 +126,16 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
 
               <Button
                 disabled={!playerName.trim()}
-                onClick={async () => {
-                  try {
-                    const { user, access_token } = await authService.devLogin();
-                    localStorage.setItem('token', access_token);
-                    localStorage.setItem('userId', String(user.id));
-                    onLogin({ name: playerName.trim() });
-                  } catch (e) {
-                    console.error(e);
-                    alert("개발 로그인 실패");
-                  }
+                onClick={() => {
+                  // 서버 호출을 생략하고 로컬 테스트용 데이터 세팅
+                  const mockUserId = "1";
+                  const mockToken = "dev_test_token";
+
+                  localStorage.setItem('token', mockToken);
+                  localStorage.setItem('userId', mockUserId);
+
+                  console.log("🛠️ 개발 모드: 서버 없이 로그인 통과");
+                  onLogin({ name: playerName.trim() || "테스트유저" });
                 }}
                 className="w-full h-12 text-sm font-bold bg-white/10 hover:bg-white/20 text-white border border-white/20 transform hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >

@@ -1,27 +1,27 @@
 import { useState } from "react";
 import { Lineup, Stadium } from "@/app/types";
+import { api } from "@/app/lib/api";
 import { STADIUMS } from "@/app/data/stadiums";
-import { TEAM_THEMES } from "@/app/data/teamThemes";
 import { Card } from "@/app/components/ui/card";
 import { Button } from "@/app/components/ui/button";
-import { Badge } from "@/app/components/ui/badge";
-import { Separator } from "@/app/components/ui/separator";
 import {
   RadioGroup,
   RadioGroupItem,
 } from "@/app/components/ui/radio-group";
 import { Label } from "@/app/components/ui/label";
-import { Coins, Users, Trophy, MapPin } from "lucide-react";
+import { Users, Trophy, MapPin } from "lucide-react";
 
 interface GameSetupProps {
   myLineup: Lineup;
   opponentLineup?: Lineup;
+  matchId: string;
   onGameStart: (stadium: Stadium, isHome: boolean) => void;
 }
 
 export function GameSetup({
   myLineup,
   opponentLineup,
+  matchId,
   onGameStart,
 }: GameSetupProps) {
   const [selectedStadium, setSelectedStadium] =
@@ -30,36 +30,24 @@ export function GameSetup({
     "home",
   );
 
-  const myTeam = myLineup.batting[0]?.team || "내 팀";
-  const opponentTeam =
-    opponentLineup?.batting[0]?.team || "상대 팀";
-  const myTheme = TEAM_THEMES[myTeam];
-  const opponentTheme = TEAM_THEMES[opponentTeam];
+  const handleStart = async () => {
+    // ⭐ 백엔드에 매치 설정 저장
+    try {
+      const userId = localStorage.getItem('userId');
+      const payload = {
+        match_id: matchId,
+        user_id: userId ? Number(userId) : 1,
+        stadium_id: 1, // 요구사항: 고정값 1
+        is_home: homeAway === "home"
+      };
 
-  const calculateLineupCredits = (lineup: Lineup) => {
-    let total = 0;
-    lineup.batting.forEach((p) => {
-      if (p) total += p.salary;
-    });
-    if (lineup.pitchers.starter)
-      total += lineup.pitchers.starter.salary;
-    lineup.pitchers.middle.forEach((p) => {
-      if (p) total += p.salary;
-    });
-    if (lineup.pitchers.closer)
-      total += lineup.pitchers.closer.salary;
-    lineup.bench.forEach((p) => {
-      if (p) total += p.salary;
-    });
-    return total;
-  };
+      console.log("🚀 [DEBUG] Match Setup POST Payload:", payload);
+      await api.post('/team/match_setup', payload);
+      console.log("✅ [DEBUG] Match setup saved successfully!");
+    } catch (e) {
+      console.error("❌ [DEBUG] Failed to save match setup error:", e);
+    }
 
-  const myCredits = calculateLineupCredits(myLineup);
-  const opponentCredits = opponentLineup
-    ? calculateLineupCredits(opponentLineup)
-    : 0;
-
-  const handleStart = () => {
     onGameStart(selectedStadium, homeAway === "home");
   };
 
