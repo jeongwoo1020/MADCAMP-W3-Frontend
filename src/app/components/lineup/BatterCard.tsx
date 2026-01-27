@@ -45,7 +45,7 @@ export function BatterCard({ player }: BatterCardProps) {
                         <div className="text-sm font-medium text-gray-600">{player.team}</div>
                         <div className="flex items-center gap-1 text-amber-600 font-bold flex-shrink-0 ml-2">
                             <Coins className="w-4 h-4" />
-                            <span className="text-base">{player.salary}</span>
+                            <span className="text-base">{player.credit}</span>
                         </div>
                     </div>
                 </div>

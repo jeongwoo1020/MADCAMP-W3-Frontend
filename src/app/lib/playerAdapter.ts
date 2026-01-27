@@ -22,6 +22,7 @@ interface BackendBatter {
     fpct: number;
     go: number;
     ao: number;
+    credit: number;
 }
 
 interface BackendPitcher {
@@ -38,6 +39,7 @@ interface BackendPitcher {
     ao: number;
     error: number;
     fpct: number;
+    credit: number;
 }
 
 interface BackendPlayersResponse {
@@ -156,8 +158,8 @@ export async function fetchAndAdaptPlayers(): Promise<{ batters: Player[], pitch
                 ip: 0, h: 0, hr: 0, bb: 0, so: 0, go: b.go, ao: b.ao, max_pitch_count: 0
             };
 
-            player.salary = calculateSalary(player);
-            player.credit = player.salary; // UI에서 credit 사용
+            player.credit = b.credit || calculateSalary(player);
+            player.salary = player.credit; // 호환성 유지
 
             return player;
         });
@@ -209,8 +211,8 @@ export async function fetchAndAdaptPlayers(): Promise<{ batters: Player[], pitch
                 stats: stats
             };
 
-            player.salary = calculateSalary(player);
-            player.credit = player.salary;
+            player.credit = p.credit || calculateSalary(player);
+            player.salary = player.credit;
 
             return player;
         });

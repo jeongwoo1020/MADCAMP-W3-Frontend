@@ -29,8 +29,8 @@ export function GameLobby({ onCreateGame, onJoinGame }: GameLobbyProps) {
       const userId = userIdStr ? Number(userIdStr) : 1;
 
       const response = await api.post('/rooms', { user_id: userId });
-      setGeneratedCode(response.data.match_id);
-      console.log("✅ Room Created:", response.data.match_id);
+      setGeneratedCode(response.data.invite_code);
+      console.log("✅ Room Created, Invite Code:", response.data.invite_code);
     } catch (error) {
       console.error('Failed to create room:', error);
       alert('방 생성에 실패했습니다.');
@@ -50,12 +50,12 @@ export function GameLobby({ onCreateGame, onJoinGame }: GameLobbyProps) {
 
         // 백엔드에 Join 요청
         const response = await api.post('/rooms/join', {
-          match_id: inviteCode,
+          invite_code: inviteCode,
           guest_id: userId
         });
 
-        console.log("✅ Joined Room:", response.data.match_id);
-        onJoinGame(inviteCode);
+        console.log("✅ Joined Room, Match ID:", response.data.match_id);
+        onJoinGame(response.data.match_id); // 참가 후에는 내부 트래킹용 match_id 사용
       } catch (e) {
         console.error("Join Error:", e);
         alert("방 참여에 실패했습니다. 코드를 확인해주세요.");
@@ -268,7 +268,7 @@ export function GameLobby({ onCreateGame, onJoinGame }: GameLobbyProps) {
 
                 <div>
                   <p className="text-2xl mb-2 text-white font-black italic">
-                    친구가 공유한 6자리 초대 코드를 입력하세요
+                    친구가 공유한 초대 코드를 입력하세요
                   </p>
                 </div>
 
@@ -280,7 +280,7 @@ export function GameLobby({ onCreateGame, onJoinGame }: GameLobbyProps) {
                     placeholder="6자리 코드 입력"
                     value={inviteCode}
                     onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-                    maxLength={32} // UUID나 긴 ID 대응을 위해 확장
+                    maxLength={6}
                     className="text-2xl h-24 text-center font-mono font-black uppercase bg-black/60 border-cyber-yellow text-cyber-yellow focus-visible:border-cyber-yellow focus-visible:ring-cyber-yellow tracking-widest"
                   />
                 </div>
