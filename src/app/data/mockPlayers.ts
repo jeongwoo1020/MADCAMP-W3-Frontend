@@ -1,4 +1,4 @@
-import { Player } from '@/app/types';
+import { Player, Hitter, Pitcher } from '@/app/types';
 
 export const TEAMS = [
   'LG 트윈스',
@@ -38,6 +38,16 @@ const RAW_PLAYERS: any[] = [
   { id: 25, name: '노시환', team: '한화 이글스', position: '3루수', credit: 23, stats: { avg: 0.26, ops: 0.851, hr: 32, rbi: 105 }, recentForm: 9 },
 
   //... 생략 (필요시 더 추가 가능)
+  { id: 28, name: '류현진', team: '한화 이글스', position: '투수', credit: 25, pitcherRole: 'starter', stats: { era: 3.2, whip: 1.15, k: 180 }, recentForm: 9 },
+  { id: 30, name: '최재훈', team: '한화 이글스', position: '포수', credit: 15, stats: { avg: 0.265, ops: 0.75, hr: 5, rbi: 45 }, recentForm: 7 },
+  { id: 43, name: '채은성', team: '한화 이글스', position: '1루수', credit: 18, stats: { avg: 0.28, ops: 0.82, hr: 20, rbi: 80 }, recentForm: 8 },
+  { id: 44, name: '안치홍', team: '한화 이글스', position: '2루수', credit: 17, stats: { avg: 0.29, ops: 0.8, hr: 12, rbi: 60 }, recentForm: 8 },
+  { id: 55, name: '노시환', team: '한화 이글스', position: '3루수', credit: 23, stats: { avg: 0.285, ops: 0.92, hr: 35, rbi: 110 }, recentForm: 9 },
+  { id: 86, name: '이도윤', team: '한화 이글스', position: '유격수', credit: 12, stats: { avg: 0.25, ops: 0.65, hr: 1, rbi: 30 }, recentForm: 7 },
+  { id: 87, name: '최인호', team: '한화 이글스', position: '좌익수', credit: 13, stats: { avg: 0.27, ops: 0.72, hr: 4, rbi: 40 }, recentForm: 8 },
+  { id: 102, name: '페라자', team: '한화 이글스', position: '중견수', credit: 20, stats: { avg: 0.31, ops: 0.95, hr: 28, rbi: 90 }, recentForm: 10 },
+  { id: 103, name: '문현빈', team: '한화 이글스', position: '우익수', credit: 14, stats: { avg: 0.26, ops: 0.7, hr: 5, rbi: 50 }, recentForm: 8 },
+  { id: 116, name: '김태연', team: '한화 이글스', position: '지명타자', credit: 15, stats: { avg: 0.28, ops: 0.81, hr: 15, rbi: 70 }, recentForm: 9 },
   { id: 201, name: '곽빈', team: '두산 베어스', position: '투수', credit: 18, pitcherRole: 'starter', stats: { era: 3.5, whip: 1.25, k: 140 }, recentForm: 8 },
 ];
 
@@ -66,10 +76,6 @@ export const MOCK_PLAYERS: Player[] = RAW_PLAYERS.map((player) => {
 
 export const getPlayersByTeam = (team: string): Player[] => {
   const players = MOCK_PLAYERS.filter((player) => player.team === team);
-  // 만약 선수가 부족하면 더미 데이터라도 생성해서 반환 (LineupBuilder가 깨지지 않게)
-  if (players.length < 15) {
-    // 부족한 만큼 채워줌 (실제 서비스에선 필요 없으나 현재 DB 데이터가 부족할 수 있음)
-  }
   return players;
 };
 

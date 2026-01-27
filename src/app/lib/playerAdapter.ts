@@ -1,4 +1,5 @@
 import { Player } from '@/app/types';
+import { getFullTeamName } from '@/app/data/teamThemes';
 
 // 백엔드 데이터 타입 정의 (Batter.kt, Pitcher.kt 참조)
 interface BackendBatter {
@@ -47,23 +48,9 @@ interface BackendPlayersResponse {
     pitchers: BackendPitcher[];
 }
 
-// 팀 이름 한글 -> 풀네임 매핑 (백엔드 데이터 -> 프론트엔드 테마/에셋)
-export const TEAM_NAME_MAP: Record<string, string> = {
-    'LG': 'LG 트윈스',
-    '한화': '한화 이글스',
-    'SSG': 'SSG 랜더스',
-    '삼성': '삼성 라이온즈',
-    'NC': 'NC 다이노스',
-    'KT': 'KT 위즈',
-    '롯데': '롯데 자이언츠',
-    'KIA': 'KIA 타이거즈',
-    '두산': '두산 베어스',
-    '키움': '키움 히어로즈'
-};
 
 function normalizeTeamName(team: string): string {
-    const trimmed = team?.trim();
-    return TEAM_NAME_MAP[trimmed] || trimmed || '내 팀';
+    return getFullTeamName(team);
 }
 
 // 연봉 계산 (mockPlayers.ts 로직 재사용 + 수정)

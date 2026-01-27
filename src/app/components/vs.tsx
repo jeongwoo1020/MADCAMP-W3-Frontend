@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { Lineup } from "@/app/types";
-import { TEAM_THEMES } from "@/app/data/teamThemes";
+import { TEAM_THEMES, getFullTeamName } from "@/app/data/teamThemes";
 import { Card } from "@/app/components/ui/card";
 import { Badge } from "@/app/components/ui/badge";
 import { Separator } from "@/app/components/ui/separator";
@@ -13,25 +13,25 @@ interface VSPageProps {
 }
 
 export function VSPage({ myLineup, opponentLineup, onComplete }: VSPageProps) {
-    const myTeam = myLineup.batting[0]?.team || "내 팀";
-    const opponentTeam = opponentLineup?.batting[0]?.team || "상대 팀";
+    const myTeam = getFullTeamName(myLineup.batting[0]?.team || "내 팀");
+    const opponentTeam = getFullTeamName(opponentLineup?.batting[0]?.team || "상대 팀");
     const myTheme = TEAM_THEMES[myTeam];
     const opponentTheme = TEAM_THEMES[opponentTeam];
 
     const calculateLineupCredits = (lineup: Lineup) => {
         let total = 0;
         lineup.batting.forEach((p) => {
-            if (p) total += p.salary;
+            if (p) total += (p as any).credit || (p as any).salary || 0;
         });
         if (lineup.pitchers.starter)
-            total += lineup.pitchers.starter.salary;
+            total += (lineup.pitchers.starter as any).credit || (lineup.pitchers.starter as any).salary || 0;
         lineup.pitchers.middle.forEach((p) => {
-            if (p) total += p.salary;
+            if (p) total += (p as any).credit || (p as any).salary || 0;
         });
         if (lineup.pitchers.closer)
-            total += lineup.pitchers.closer.salary;
+            total += (lineup.pitchers.closer as any).credit || (lineup.pitchers.closer as any).salary || 0;
         lineup.bench.forEach((p) => {
-            if (p) total += p.salary;
+            if (p) total += (p as any).credit || (p as any).salary || 0;
         });
         return total;
     };

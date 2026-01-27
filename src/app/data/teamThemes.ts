@@ -78,3 +78,20 @@ export const TEAM_THEMES: Record<string, TeamTheme> = {
     gradient: 'from-orange-600 to-gray-900',
   },
 };
+
+export const FULL_TEAM_NAME: Record<string, string> = {
+  'LG': 'LG 트윈스',
+  '한화': '한화 이글스',
+  'SSG': 'SSG 랜더스',
+  '삼성': '삼성 라이온즈',
+  'NC': 'NC 다이노스',
+  'KT': 'KT 위즈',
+  '롯데': '롯데 자이언츠',
+  'KIA': 'KIA 타이거즈',
+  '두산': '두산 베어스',
+  '키움': '키움 히어로즈',
+};
+
+export const getFullTeamName = (name: string): string => {
+  return FULL_TEAM_NAME[name.trim()] || name;
+};
