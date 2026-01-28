@@ -138,7 +138,6 @@ export function SimulationGame({
   const [homeLineup, setHomeLineup] = useState<Lineup | null>(null);
   const [awayLineup, setAwayLineup] = useState<Lineup | null>(null);
 
-  const simulationStarted = useRef(false);
 
   const [matchInfo, setMatchInfo] = useState<MatchInfo>({
     matchId: matchId,
@@ -309,9 +308,9 @@ export function SimulationGame({
   const [selectedRunnerBase, setSelectedRunnerBase] = useState<0 | 1 | 2 | null>(null);
   const [isAggressive, setIsAggressive] = useState(false);
 
-  // 1. 데이터 소스 통합 (API에서 받아온 정보 사용)
   const myCurrentLineup = isHome ? homeLineup : awayLineup;
   const opponentCurrentLineup = isHome ? awayLineup : homeLineup;
+
 
   // 게임 종료 체크
   const isGameOver = matchInfo.status === 'FINISHED' || matchInfo.inning > 9;
@@ -373,8 +372,44 @@ export function SimulationGame({
 
           if (eventType === 'SIMULATION_END' || eventType === 'GAME_OVER' || eventType === 'AT_BAT_RESULT' || eventType === 'GAME_EVENT') {
             setIsSimulating(false);
+
+            // ⭐ [추가] 다음 타석 자동 진행 (Home User 주도, 3초 뒤)
+            if (isHome && !isGameOver && (eventType === 'AT_BAT_RESULT' || eventType === 'GAME_EVENT')) {
+              setTimeout(() => {
+                console.log("⚾ [DEBUG] Auto-triggering next play (subscription)...");
+                client.publish({
+                  destination: `/app/match/${matchId}/command`,
+                  body: JSON.stringify({
+                    matchId: matchId,
+                    senderId: Number(localStorage.getItem('userId') || 0),
+                    type: 'NORMAL',
+                    inning: matchInfo.inning
+                  }),
+                });
+                setIsSimulating(true);
+              }, 3000);
+            }
           } else if (eventType === 'AT_BAT' || eventType === 'BUNT' || eventType === 'STEAL' || eventType === 'START_SIMULATION') {
             setIsSimulating(true);
+            if (eventType === 'START_SIMULATION') setIsSimulating(true);
+          }
+
+          // ⭐ [추가] 서버 준비 완료 신호 수신 시 첫 플레이 시작
+          if (eventType === 'READY_STATUS' && data?.ready) {
+            console.log("🚀 [DEBUG] Server Ready! Sending first play (NORMAL)...");
+            if (isHome) {
+              client.publish({
+                destination: `/app/match/${matchId}/command`,
+                body: JSON.stringify({
+                  matchId: matchId,
+                  senderId: Number(localStorage.getItem('userId') || 0),
+                  type: 'NORMAL',
+                  inning: matchInfo.inning || 1
+                }),
+              });
+              setIsSimulating(true);
+              setIsSimulating(true);
+            }
           }
         });
       },
@@ -383,33 +418,9 @@ export function SimulationGame({
     client.activate();
     stompClient.current = client;
     return () => client.deactivate();
-  }, [matchId, !!homeLineup, !!awayLineup]);
+  }, [matchId, !!homeLineup, !!awayLineup, isHome, isGameOver]);
 
-  // ⭐ 연결 후 한 번만 START 시뮬레이션 명령 전송
-  useEffect(() => {
-    if (!stompClient.current?.connected || !homeLineup || !awayLineup) return;
-    if (simulationStarted.current) return;
 
-    const userIdStr = localStorage.getItem('userId');
-    const userId = userIdStr ? Number(userIdStr) : 0;
-
-    if (isHome) {
-      console.log(`[DEBUG] Automating Game Start (Home User) - matchId: ${matchId}, userId: ${userId}`);
-      setIsSimulating(true);
-
-      stompClient.current.publish({
-        destination: `/app/match/${matchId}/command`,
-        body: JSON.stringify({
-          matchId: matchId,
-          senderId: userId,
-          type: 'START_SIMULATION',
-          inning: matchInfo.inning || 1,
-          data: {}
-        }),
-      });
-      simulationStarted.current = true;
-    }
-  }, [stompClient.current?.connected, isHome, matchId, !!homeLineup, !!awayLineup, matchInfo.inning]);
 
   // 3. 게임 종료 자동 처리
   useEffect(() => {
@@ -417,6 +428,9 @@ export function SimulationGame({
       onGameEnd(matchInfo.score, []);
     }
   }, [isGameOver, matchInfo.score, onGameEnd]);
+
+
+
 
   // --- Early Return (데이터 로딩 중) ---
   if (isLoading || !homeLineup || !awayLineup) {
@@ -443,6 +457,8 @@ export function SimulationGame({
   // 현재 팀 정보 (API 데이터 기준)
   const myTeam = getFullTeamName(myCurrentLineup?.batting[0]?.team || '우리팀');
   const opponentTeam = getFullTeamName(opponentCurrentLineup?.batting[0]?.team || '상대팀');
+
+
 
 
 
