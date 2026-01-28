@@ -3,9 +3,10 @@ import { Player } from '@/app/types';
 
 interface BaseballFieldProps {
   lineup: (Player | null)[];
-  fieldPositions: (string | null)[];
+  fieldPositions: Record<string, number>; // { "SS": 102, "2B": 103 ... }
   currentBatter: Player | null;
   currentPitcher: Player | null;
+  currentRunners: (Player | null)[]; // [1루, 2루, 3루]
   onPlayerClick?: (player: Player | null, position: string) => void;
 }
 
@@ -77,22 +78,26 @@ const PlayerMarker = ({
   );
 };
 
-export function BaseballField({ lineup, fieldPositions, currentBatter, currentPitcher, onPlayerClick }: BaseballFieldProps) {
-  // 수비 포지션별로 선수 매핑
+export function BaseballField({ lineup, fieldPositions, currentBatter, currentPitcher, currentRunners, onPlayerClick }: BaseballFieldProps) {
+  // 수비 포지션별로 선수 매핑 (ID 기반)
   const getPlayerByPosition = (position: string) => {
-    if (!fieldPositions || !lineup) {
-      return null;
-    }
-    const index = fieldPositions.findIndex((pos) => pos === position);
-    if (index !== -1) {
-      return lineup[index];
-    }
-    return null;
+    if (!fieldPositions || !lineup) return null;
+
+    const val = fieldPositions[position];
+    if (!val) return null;
+
+    // val이 숫자/문자열일 수도 있고, {id: 123} 형태의 객체일 수도 있음
+    const playerId = typeof val === 'object' ? (val as any).id : val;
+    if (!playerId) return null;
+
+    const found = lineup.find(p => p && Number(p.id) === Number(playerId)) || null;
+    console.log(`[DEBUG] Field Mapping - Pos: ${position}, ID: ${playerId}, Found: ${found?.name || 'No'}`);
+    return found;
   };
 
   return (
     <div className="relative w-full aspect-[4/3] bg-[#2d5a27] rounded-2xl overflow-hidden border-4 border-[#1a3a17] shadow-2xl group">
-      {/* 1. 그라운드 배경: 홈에서 외야로 멀어지는 입체적인 그라데이션 */}
+      {/* 1. 그라운드 배경 */}
       <div
         className="absolute inset-0 transition-opacity duration-1000"
         style={{
@@ -100,7 +105,7 @@ export function BaseballField({ lineup, fieldPositions, currentBatter, currentPi
         }}
       />
 
-      {/* 2. 내야 흙 다이아몬드 및 베이스라인 (원근감 표현) */}
+      {/* 2. 내야 흙 다이아몬드 및 베이스라인 */}
       <div className="absolute bottom-[12%] left-1/2 -translate-x-1/2 w-[75%] h-[80%] opacity-40 pointer-events-none">
         <svg viewBox="0 0 100 100" className="w-full h-full">
           <path d="M 50 95 L 88 58 L 50 22 L 12 58 Z" fill="#c4a57b" />
@@ -117,7 +122,34 @@ export function BaseballField({ lineup, fieldPositions, currentBatter, currentPi
       {/* 3. 홈플레이트 디테일 */}
       <div className="absolute left-1/2 bottom-[5%] -translate-x-1/2 w-4 h-4 bg-white/90 rotate-45 border-2 border-slate-300 shadow-sm z-20" />
 
-      {/* 4. 수비수 및 투수 마커 배치 */}
+      {/* 4. 주자 표시 */}
+      {[0, 1, 2].map((i) => {
+        const runner = currentRunners[i];
+        if (!runner) return null;
+
+        // 베이스별 좌표 (1루, 2루, 3루)
+        const runnerCoords = [
+          { x: 88, y: 58 }, // 1B
+          { x: 50, y: 22 }, // 2B
+          { x: 12, y: 58 }  // 3B
+        ];
+
+        return (
+          <div
+            key={`runner-${i}`}
+            className="absolute transform -translate-x-1/2 -translate-y-1/2 z-40 transition-all duration-500 scale-[0.65]"
+            style={{ left: `${runnerCoords[i].x}%`, top: `${runnerCoords[i].y}%` }}
+          >
+            <PlayerMarker
+              player={runner}
+              label={`${i + 1}B RUNNER`}
+              onClick={() => onPlayerClick?.(runner, `RUNNER_${i + 1}`)}
+            />
+          </div>
+        );
+      })}
+
+      {/* 5. 수비수 및 투수 마커 배치 */}
       {Object.entries(POSITION_COORDINATES).map(([position, coords]) => {
         // 투수(P)는 currentPitcher를, 나머지는 라인업에서 해당 포지션 선수를 가져옴
         const player = position === 'P' ? currentPitcher : getPlayerByPosition(position);

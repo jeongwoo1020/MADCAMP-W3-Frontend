@@ -140,26 +140,52 @@ export function SimulationGame({
   const [homeLineup, setHomeLineup] = useState<Lineup | null>(null);
   const [awayLineup, setAwayLineup] = useState<Lineup | null>(null);
 
+  const simulationStarted = useRef(false);
+
   const [matchInfo, setMatchInfo] = useState<MatchInfo>({
-    match_id: matchId,
+    matchId: matchId,
     status: 'PLAYING',
     score: { home: 0, away: 0 },
     inning: 1,
-    is_top: true, // true: 초, false: 말
-    runners: [null, null, null], // [1루, 2루, 3루]
-    active_lineup: {
-      batting: [],
-      pitcher: null,
-      bench: [],
-    },
-    ball_count: { b: 0, s: 0, o: 0 },
-    currentBatter: 0,
-    pitches: 0,
-    currentPitcher: {
-      stamina: 100,
-      pitchTypes: ['직구', '슬라이더', '커브', '체인지업', '포크볼'],
-    },
+    isTop: true, // true: 초, false: 말
+    ballCount: { b: 0, s: 0, o: 0 },
+    runnerIds: [null, null, null], // [1루, 2루, 3루] 주자 ID
+    currentBatterIndex: 0,
+    currentPitcherId: 0,
+    fieldPositions: {},
   });
+
+  // 선수를 ID로 찾는 헬퍼 함수
+  // 선수를 ID로 찾는 헬퍼 함수 (더 강력한 버전)
+  const getPlayerById = (id: any): Hitter | Pitcher | null => {
+    if (id === null || id === undefined || id === 0 || id === '0') return null;
+
+    // 만약 id 자체가 객체라면 .id를 시도
+    const numericId = typeof id === 'object' ? Number((id as any).id) : Number(id);
+    if (isNaN(numericId) || numericId === 0) return null;
+
+    // 타자 검색 (홈/어웨이 전체)
+    const allHitters = [
+      ...(homeLineup?.batting || []),
+      ...(homeLineup?.bench || []),
+      ...(awayLineup?.batting || []),
+      ...(awayLineup?.bench || [])
+    ];
+    const hitter = allHitters.find(h => h && Number(h.id) === numericId);
+    if (hitter) return hitter;
+
+    // 투수 검색
+    const allPitchers = [
+      homeLineup?.pitchers.starter,
+      ...(homeLineup?.pitchers.middle || []),
+      homeLineup?.pitchers.closer,
+      awayLineup?.pitchers.starter,
+      ...(awayLineup?.pitchers.middle || []),
+      awayLineup?.pitchers.closer
+    ];
+    const pitcher = allPitchers.find(p => p && Number(p.id) === numericId);
+    return pitcher || null;
+  };
 
 
   // 서버 Lineup DTO -> 클라이언트 Lineup Type 변환
@@ -174,10 +200,24 @@ export function SimulationGame({
     // 수비 포지션 역산 (starters 맵 기반)
     const fieldPositions = batting.map((batter: Hitter) => {
       if (!batter) return 'DH';
-      return Object.entries(serverLineup.starters || {}).find(([pos, pId]) => pId === batter.id && pos !== 'P')?.[0] || 'DH';
+
+      const foundEntry = Object.entries(serverLineup.starters || {}).find(([pos, pValue]: [string, any]) => {
+        const pId = typeof pValue === 'object' ? pValue.id : pValue;
+        return Number(pId) === Number(batter.id) && pos !== 'P';
+      });
+
+      if (foundEntry) {
+        console.log(`[DEBUG] Found Position for ${batter.name}: ${foundEntry[0]}`);
+        return foundEntry[0];
+      }
+      return 'DH';
     });
 
-    console.log("[DEBUG] Converted result:", { battingCount: batting.length, hasStarter: !!starter });
+    console.log("[DEBUG] Converted result:", {
+      battingCount: batting.length,
+      fieldPositions,
+      hasStarter: !!starter
+    });
 
     return {
       batting,
@@ -207,22 +247,46 @@ export function SimulationGame({
         setHomeLineup(hLineup);
         setAwayLineup(aLineup);
 
+        // 수비팀의 starters에서 초기 fieldPositions 추출
+        const isTop = data.is_top ?? data.isTop ?? true;
+        const defenseLineupSource = isTop ? data.home_lineup : data.away_lineup;
+        const initialFieldPositions: Record<string, number> = {};
+        if (defenseLineupSource?.starters) {
+          Object.entries(defenseLineupSource.starters).forEach(([pos, player]: [string, any]) => {
+            if (player) {
+              const id = typeof player === 'object' ? player.id : player;
+              if (id) initialFieldPositions[pos] = Number(id);
+            }
+          });
+        }
+
         // 경기 상태 업데이트
         setMatchInfo(prev => ({
           ...prev,
-          match_id: data.match_id,
+          matchId: data.match_id || data.matchId,
           inning: data.inning,
-          is_top: data.is_top,
+          isTop: isTop,
           score: data.score,
-          ball_count: {
-            b: data.ball_count.b,
-            s: data.ball_count.s,
-            o: data.ball_count.o
+          ballCount: {
+            b: data.ball_count?.b ?? data.ballCount?.b ?? 0,
+            s: data.ball_count?.s ?? data.ballCount?.s ?? 0,
+            o: data.ball_count?.o ?? data.ballCount?.o ?? 0
           },
-          runners: data.runners || [null, null, null]
+          runnerIds: (data.runnerIds || data.runners || [null, null, null]).map((r: any) => (typeof r === 'object' && r !== null) ? r.id : r),
+          currentBatterIndex: data.currentBatterIndex ?? data.current_batter_index ?? data.currentBatter ?? 0,
+          currentPitcherId: data.currentPitcherId ?? data.current_pitcher_id ?? data.currentPitcher?.id ?? data.currentPitcher ?? 0,
+          // 중요: fieldPositions가 null이거나 빈 객체일 경우에만 initialFieldPositions 사용
+          fieldPositions: (data.fieldPositions && Object.keys(data.fieldPositions).length > 0)
+            ? data.fieldPositions
+            : initialFieldPositions
         }));
 
-        console.log("✅ Game Initialized from API");
+        console.log("✅ Game Initialized from API", {
+          hLineup,
+          aLineup,
+          serverRaw: data,
+          initialFieldPositions
+        });
       } catch (error) {
         console.error("❌ Failed to init game:", error);
       } finally {
@@ -234,7 +298,7 @@ export function SimulationGame({
   }, [matchId]);
 
 
-  const isMyTeamBatting = isHome !== matchInfo.is_top;
+  const isMyTeamBatting = isHome !== matchInfo.isTop;
 
   const [gameLog, setGameLog] = useState<string[]>([]);
   const [isSimulating, setIsSimulating] = useState(false);
@@ -272,18 +336,37 @@ export function SimulationGame({
 
           if (data && data.matchInfo) {
             const info = data.matchInfo;
-            setMatchInfo(prev => ({
-              ...prev,
-              ...info,
-              match_id: info.matchId || info.match_id || matchId,
-              score: info.score || prev.score,
-              is_top: info.isTop ?? info.top ?? info.is_top ?? prev.is_top,
-              inning: info.inning || inning || prev.inning,
-              ball_count: info.ballCount || info.ball_count || prev.ball_count,
-              runners: info.runners || [null, null, null],
-              currentBatter: info.currentBatterIndex ?? info.currentBatter ?? prev.currentBatter,
-              status: info.status || prev.status
-            }));
+
+            // 실시간 라인업 업데이트 (교체 등 반영)
+            if (info.home_lineup) {
+              const hLineup = convertServerLineup(info.home_lineup);
+              setHomeLineup(hLineup);
+              console.log("[DEBUG] WebSocket: Updated Home Lineup");
+            }
+            if (info.away_lineup) {
+              const aLineup = convertServerLineup(info.away_lineup);
+              setAwayLineup(aLineup);
+              console.log("[DEBUG] WebSocket: Updated Away Lineup");
+            }
+
+            setMatchInfo(prev => {
+              const newState = {
+                ...prev,
+                ...info,
+                matchId: info.matchId || info.match_id || matchId,
+                score: info.score || prev.score,
+                isTop: info.isTop ?? info.top ?? info.is_top ?? prev.isTop,
+                inning: info.inning || inning || prev.inning,
+                ballCount: info.ballCount || info.ball_count || prev.ballCount,
+                runnerIds: (info.runnerIds || info.runners || [null, null, null]).map((r: any) => (typeof r === 'object' && r !== null) ? r.id : r),
+                currentBatterIndex: info.currentBatterIndex ?? info.current_batter_index ?? info.currentBatter ?? prev.currentBatterIndex,
+                currentPitcherId: info.currentPitcherId ?? info.current_pitcher_id ?? info.currentPitcher?.id ?? info.currentPitcher ?? prev.currentPitcherId,
+                status: info.status || prev.status,
+                fieldPositions: info.fieldPositions || prev.fieldPositions
+              };
+              console.log("[DEBUG] WebSocket MatchInfo Update:", newState);
+              return newState;
+            });
           }
 
           if (description) {
@@ -296,31 +379,39 @@ export function SimulationGame({
             setIsSimulating(true);
           }
         });
-
-        // ⭐ 연결 성공 시 자동으로 START 명령 전송
-        const userIdStr = localStorage.getItem('userId');
-        const userId = userIdStr ? Number(userIdStr) : 0;
-
-        console.log(`[DEBUG] Automating Game Start - matchId: ${matchId}, userId: ${userId}`);
-        setIsSimulating(true);
-
-        client.publish({
-          destination: `/app/match/${matchId}/command`,
-          body: JSON.stringify({
-            matchId: matchId,
-            senderId: userId,
-            type: 'START_SIMULATION',
-            inning: 1,
-            data: {}
-          }),
-        });
       },
     });
 
     client.activate();
     stompClient.current = client;
     return () => client.deactivate();
-  }, [matchId, homeLineup, awayLineup]);
+  }, [matchId, !!homeLineup, !!awayLineup]);
+
+  // ⭐ 연결 후 한 번만 START 시뮬레이션 명령 전송
+  useEffect(() => {
+    if (!stompClient.current?.connected || !homeLineup || !awayLineup) return;
+    if (simulationStarted.current) return;
+
+    const userIdStr = localStorage.getItem('userId');
+    const userId = userIdStr ? Number(userIdStr) : 0;
+
+    if (isHome) {
+      console.log(`[DEBUG] Automating Game Start (Home User) - matchId: ${matchId}, userId: ${userId}`);
+      setIsSimulating(true);
+
+      stompClient.current.publish({
+        destination: `/app/match/${matchId}/command`,
+        body: JSON.stringify({
+          matchId: matchId,
+          senderId: userId,
+          type: 'START_SIMULATION',
+          inning: matchInfo.inning || 1,
+          data: {}
+        }),
+      });
+      simulationStarted.current = true;
+    }
+  }, [stompClient.current?.connected, isHome, matchId, !!homeLineup, !!awayLineup, matchInfo.inning]);
 
   // 3. 게임 종료 자동 처리
   useEffect(() => {
@@ -342,13 +433,14 @@ export function SimulationGame({
   }
 
   // 로딩 완료 후 계산 가능한 변수들
-  const currentLineup = matchInfo.is_top ? awayLineup : homeLineup;
-  const defenseLineup = matchInfo.is_top ? homeLineup : awayLineup;
+  const currentLineup = matchInfo.isTop ? awayLineup : homeLineup;
+  const defenseLineup = matchInfo.isTop ? homeLineup : awayLineup;
 
   if (!currentLineup || !defenseLineup) return null; // 안전장치
 
-  const currentBatter = currentLineup.batting[matchInfo.currentBatter];
-  const currentPitcher = defenseLineup.pitchers.starter;
+  const currentBatter = getPlayerById(currentLineup.batting[matchInfo.currentBatterIndex]?.id || null) as Hitter;
+  const currentPitcher = (getPlayerById(matchInfo.currentPitcherId) || defenseLineup.pitchers.starter) as Pitcher;
+  const currentRunners = matchInfo.runnerIds.map(id => getPlayerById(id) as Hitter);
 
   // 현재 팀 정보 (API 데이터 기준)
   const myTeam = getFullTeamName(myCurrentLineup?.batting[0]?.team || '우리팀');
@@ -453,7 +545,8 @@ export function SimulationGame({
           }
         }),
       });
-      const runner = matchInfo.runners[baseIndex];
+      const runnerId = matchInfo.runnerIds[baseIndex];
+      const runner = getPlayerById(runnerId);
       setGameLog((prev) => [`[작전] ${runner?.name || (baseIndex + 1) + '루 주자'} ${aggressive ? '적극적' : '일반'} 주루 명령 하달`, ...prev]);
       setIsSimulating(true);
     }
@@ -512,7 +605,8 @@ export function SimulationGame({
   };
 
   const handlePinchRunner = (player: Hitter, base: 0 | 1 | 2) => {
-    const oldRunner = matchInfo.runners[base];
+    const oldRunnerId = matchInfo.runnerIds[base];
+    const oldRunner = getPlayerById(oldRunnerId);
     console.log(`[DEBUG] Pinch Runner Requested - In: ${player.name}(${player.id}) at base ${base + 1}`);
 
     if (stompClient.current?.connected) {
@@ -575,10 +669,16 @@ export function SimulationGame({
         <div className="col-span-7 flex items-center justify-center overflow-hidden rounded-2xl bg-black/20 backdrop-blur-sm border border-white/5 shadow-2xl">
           <div className="w-full h-full flex items-center justify-center p-4">
             <BaseballField
-              lineup={currentLineup.batting as any}
-              fieldPositions={defenseLineup.fieldPositions}
+              lineup={[
+                ...(defenseLineup.batting || []),
+                defenseLineup.pitchers.starter,
+                ...(defenseLineup.pitchers.middle || []),
+                defenseLineup.pitchers.closer
+              ].filter(Boolean) as any}
+              fieldPositions={matchInfo.fieldPositions}
               currentBatter={currentBatter as any}
               currentPitcher={currentPitcher as any}
+              currentRunners={currentRunners as any}
             />
           </div>
         </div>
@@ -663,22 +763,22 @@ export function SimulationGame({
                 <div className="relative w-24 h-16 mb-1">
                   {/* 2nd Base */}
                   <div
-                    className={`absolute top-0 left-1/2 -translate-x-1/2 w-6 h-6 rotate-45 border-2 transition-all duration-300 ${matchInfo.runners[1] ? 'bg-yellow-400 border-yellow-500 shadow-md' : 'bg-white border-gray-300'}`}
+                    className={`absolute top-0 left-1/2 -translate-x-1/2 w-6 h-6 rotate-45 border-2 transition-all duration-300 ${matchInfo.runnerIds[1] ? 'bg-yellow-400 border-yellow-500 shadow-md' : 'bg-white border-gray-300'}`}
                   />
                   {/* 3rd Base */}
                   <div
-                    className={`absolute bottom-1 left-4 w-6 h-6 rotate-45 border-2 transition-all duration-300 ${matchInfo.runners[2] ? 'bg-yellow-400 border-yellow-500 shadow-md' : 'bg-white border-gray-300'}`}
+                    className={`absolute bottom-1 left-4 w-6 h-6 rotate-45 border-2 transition-all duration-300 ${matchInfo.runnerIds[2] ? 'bg-yellow-400 border-yellow-500 shadow-md' : 'bg-white border-gray-300'}`}
                   />
                   {/* 1st Base */}
                   <div
-                    className={`absolute bottom-1 right-4 w-6 h-6 rotate-45 border-2 transition-all duration-300 ${matchInfo.runners[0] ? 'bg-yellow-400 border-yellow-500 shadow-md' : 'bg-white border-gray-300'}`}
+                    className={`absolute bottom-1 right-4 w-6 h-6 rotate-45 border-2 transition-all duration-300 ${matchInfo.runnerIds[0] ? 'bg-yellow-400 border-yellow-500 shadow-md' : 'bg-white border-gray-300'}`}
                   />
                 </div>
 
                 {/* Inning */}
                 <div className="flex items-center gap-2 font-black text-xl text-gray-800">
                   <span>{matchInfo.inning}회</span>
-                  {matchInfo.is_top ? (
+                  {matchInfo.isTop ? (
                     <span className="text-red-500 text-lg">▲</span> /* Top */
                   ) : (
                     <span className="text-blue-500 text-lg">▼</span> /* Bottom */
@@ -695,7 +795,7 @@ export function SimulationGame({
                     {[0, 1, 2].map((i) => (
                       <div
                         key={i}
-                        className={`w-4 h-4 rounded-full transition-all duration-200 border ${i < matchInfo.ball_count.b
+                        className={`w-4 h-4 rounded-full transition-all duration-200 border ${i < matchInfo.ballCount.b
                           ? 'bg-green-500 border-green-600 shadow-[0_0_6px_#22c55e]'
                           : 'bg-white border-gray-300'
                           }`}
@@ -710,7 +810,7 @@ export function SimulationGame({
                     {[0, 1].map((i) => (
                       <div
                         key={i}
-                        className={`w-4 h-4 rounded-full transition-all duration-200 border ${i < matchInfo.ball_count.s
+                        className={`w-4 h-4 rounded-full transition-all duration-200 border ${i < matchInfo.ballCount.s
                           ? 'bg-yellow-400 border-yellow-500 shadow-[0_0_6px_#facc15]'
                           : 'bg-white border-gray-300'
                           }`}
@@ -725,7 +825,7 @@ export function SimulationGame({
                     {[0, 1].map((i) => (
                       <div
                         key={i}
-                        className={`w-4 h-4 rounded-full transition-all duration-200 border ${i < matchInfo.ball_count.o
+                        className={`w-4 h-4 rounded-full transition-all duration-200 border ${i < matchInfo.ballCount.o
                           ? 'bg-red-500 border-red-600 shadow-[0_0_6px_#ef4444]'
                           : 'bg-white border-gray-300'
                           }`}
@@ -923,14 +1023,14 @@ export function SimulationGame({
                 </Button>
                 <Button
                   onClick={() => setShowBaseRunningDialog(true)}
-                  disabled={!isMyTeamBatting || isSimulating || isGameOver || !matchInfo.runners.some(r => r !== null)}
+                  disabled={!isMyTeamBatting || isSimulating || isGameOver || !matchInfo.runnerIds.some(r => r !== null)}
                   className="h-9 bg-slate-900 border-0 hover:bg-slate-800 text-white font-bold text-xs"
                 >
                   주루 플레이
                 </Button>
                 <Button
                   onClick={handleSteal}
-                  disabled={!isMyTeamBatting || isSimulating || isGameOver || !matchInfo.runners.some(r => r !== null)}
+                  disabled={!isMyTeamBatting || isSimulating || isGameOver || !matchInfo.runnerIds.some(r => r !== null)}
                   className="h-9 bg-slate-900 border-0 hover:bg-slate-800 text-white font-bold text-xs"
                 >
                   도루 시도
@@ -1035,8 +1135,9 @@ export function SimulationGame({
             </div>
 
             <div className="grid grid-cols-1 gap-3">
-              {matchInfo.runners.map((runner, idx) => (
-                runner && (
+              {matchInfo.runnerIds.map((runnerId, idx) => {
+                const runner = getPlayerById(runnerId);
+                return runner && (
                   <Button
                     key={idx}
                     onClick={() => handleBaseRunning(idx as 0 | 1 | 2, isAggressive)}
@@ -1050,8 +1151,8 @@ export function SimulationGame({
                       <span className="text-[10px] bg-cyber-yellow/20 text-cyber-yellow border border-cyber-yellow/30 px-2 py-0.5 rounded font-black">명령 하달</span>
                     </div>
                   </Button>
-                )
-              ))}
+                );
+              })}
             </div>
           </div>
         </DialogContent>
