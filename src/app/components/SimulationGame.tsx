@@ -153,6 +153,12 @@ export function SimulationGame({
     fieldPositions: {},
   });
 
+  // 소켓 콜백에서 클로저 문제를 피하기 위해 Ref 사용 (상태와 동기화)
+  const matchInfoRef = useRef<MatchInfo>(matchInfo);
+  useEffect(() => {
+    matchInfoRef.current = matchInfo;
+  }, [matchInfo]);
+
   // 선수를 ID로 찾는 헬퍼 함수
   // 선수를 ID로 찾는 헬퍼 함수 (더 강력한 버전)
   const getPlayerById = (id: any): Hitter | Pitcher | null => {
@@ -330,91 +336,135 @@ export function SimulationGame({
       reconnectDelay: 5000,
       debug: (str) => console.log(`[STOMP DEBUG] ${str}`),
       onConnect: () => {
-        console.log(`✅ 경기장(${matchId}) 연결 성공!`);
+        const userId = Number(localStorage.getItem('userId') || 0);
+        console.log(`✅ 경기장(${matchId}) 연결 성공! (User: ${userId}, isHome: ${isHome})`);
+
         client.subscribe(`/topic/match/${matchId}`, (message) => {
           const response = JSON.parse(message.body);
           const { eventType, description, data, inning } = response;
+          console.log(`📩 [WS EVENT] ${eventType}:`, response);
 
-          if (data && data.matchInfo) {
+          // 1. 경기 정보 동기화
+          if (data && (data.matchInfo || eventType === 'GAME_START')) {
             const info = data.matchInfo;
-
-            // 실시간 라인업 업데이트 (교체 등 반영)
-            if (info.home_lineup) {
-              const hLineup = convertServerLineup(info.home_lineup);
-              setHomeLineup(hLineup);
-              console.log("[DEBUG] WebSocket: Updated Home Lineup");
-            }
-            if (info.away_lineup) {
-              const aLineup = convertServerLineup(info.away_lineup);
-              setAwayLineup(aLineup);
-              console.log("[DEBUG] WebSocket: Updated Away Lineup");
-            }
 
             setMatchInfo(prev => {
               const newState = {
                 ...prev,
-                ...info,
-                matchId: info.matchId || info.match_id || matchId,
-                score: info.score || prev.score,
-                isTop: info.isTop ?? info.top ?? info.is_top ?? prev.isTop,
-                inning: info.inning || inning || prev.inning,
-                ballCount: info.ballCount || info.ball_count || prev.ballCount,
-                runnerIds: (info.runnerIds || info.runners || [null, null, null]).map((r: any) => (typeof r === 'object' && r !== null) ? r.id : r),
-                currentBatterIndex: info.currentBatterIndex ?? info.current_batter_index ?? info.currentBatter ?? prev.currentBatterIndex,
-                currentPitcherId: info.currentPitcherId ?? info.current_pitcher_id ?? info.currentPitcher?.id ?? info.currentPitcher ?? prev.currentPitcherId,
-                status: info.status || prev.status,
-                fieldPositions: info.fieldPositions || prev.fieldPositions
+                ...(info || {}),
+                matchId: (info?.matchId || info?.match_id || data?.match_id || matchId),
+                inning: (info?.inning || data?.inning || inning || prev.inning),
+                isTop: (info?.isTop ?? info?.top ?? info?.is_top ?? data?.is_top ?? prev.isTop),
+                score: (info?.score || data?.score || prev.score),
+                ballCount: (info?.ballCount || info?.ball_count || prev.ballCount),
+                runnerIds: (info?.runnerIds || info?.runners || prev.runnerIds).map((r: any) => (typeof r === 'object' && r !== null) ? r.id : r),
+                currentBatterIndex: (info?.currentBatterIndex ?? info?.current_batter_index ?? info?.currentBatter ?? prev.currentBatterIndex),
+                currentPitcherId: (info?.currentPitcherId ?? info?.current_pitcher_id ?? info?.currentPitcher?.id ?? info?.currentPitcher ?? prev.currentPitcherId),
+                status: (info?.status || data?.status || prev.status),
+                fieldPositions: (info?.fieldPositions || data?.fieldPositions || prev.fieldPositions)
               };
-              console.log("[DEBUG] WebSocket MatchInfo Update:", newState);
+
+              // Ref 즉시 업데이트 (동일 콜백 내 다음 로직에서 사용 위함)
+              matchInfoRef.current = newState;
               return newState;
             });
+
+            // 실시간 라인업 업데이트 (교체 등 반영)
+            if (info?.home_lineup) setHomeLineup(convertServerLineup(info.home_lineup));
+            if (info?.away_lineup) setAwayLineup(convertServerLineup(info.away_lineup));
           }
 
+          // 2. 로그 및 시뮬레이션 상태 업데이트
           if (description) {
             setGameLog((prev) => [description, ...prev]);
           }
 
-          if (eventType === 'SIMULATION_END' || eventType === 'GAME_OVER' || eventType === 'AT_BAT_RESULT' || eventType === 'GAME_EVENT') {
+          // 3. 자동 진행 트리거 (Home User 주도)
+          if (eventType === 'GAME_START') {
+            const startInning = data?.inning || inning || 1;
+            console.log(`🎉 [AUTO] GAME_START Event - Inning: ${startInning}, isHome: ${isHome}`);
+
+            if (isHome) {
+              setTimeout(() => {
+                if (stompClient.current?.connected) {
+                  console.log(`⚾ [AUTO] Sending Initial Command (Inning: ${startInning})`);
+                  stompClient.current.publish({
+                    destination: `/app/match/${matchId}/command`,
+                    body: JSON.stringify({
+                      matchId: matchId,
+                      senderId: userId,
+                      type: 'NORMAL',
+                      inning: startInning
+                    }),
+                  });
+                  setIsSimulating(true);
+                } else {
+                  console.warn("⚠️ [AUTO] Socket disconnected, cannot send initial command");
+                }
+              }, 2000); // UI 연출을 위해 2초 대기
+            }
+          }
+
+          const triggerNextPlayEvents = ['SIMULATION_END', 'GAME_OVER', 'AT_BAT_RESULT', 'GAME_EVENT'];
+          if (triggerNextPlayEvents.includes(eventType)) {
             setIsSimulating(false);
 
-            // ⭐ [추가] 다음 타석 자동 진행 (Home User 주도, 3초 뒤)
-            if (isHome && !isGameOver && (eventType === 'AT_BAT_RESULT' || eventType === 'GAME_EVENT')) {
+            // 자동 연속 진행
+            if (isHome && ['AT_BAT_RESULT', 'GAME_EVENT'].includes(eventType)) {
               setTimeout(() => {
-                console.log("⚾ [DEBUG] Auto-triggering next play (subscription)...");
-                client.publish({
+                const latestInfo = matchInfoRef.current;
+                const isFinished = latestInfo.status === 'FINISHED' || (description?.includes("경기 종료") ?? false);
+
+                if (!isFinished && stompClient.current?.connected) {
+                  console.log(`⚾ [AUTO] Sending Next Command (Inning: ${latestInfo.inning})`);
+                  stompClient.current.publish({
+                    destination: `/app/match/${matchId}/command`,
+                    body: JSON.stringify({
+                      matchId: matchId,
+                      senderId: userId,
+                      type: 'NORMAL',
+                      inning: latestInfo.inning
+                    }),
+                  });
+                  setIsSimulating(true);
+                } else {
+                  console.log(`⏹️ [AUTO] Stop: finished=${isFinished}, connected=${stompClient.current?.connected}`);
+                }
+              }, 3500); // 타격 연출 후 3.5초 대기
+            }
+          } else if (['AT_BAT', 'BUNT', 'STEAL', 'START_SIMULATION'].includes(eventType)) {
+            setIsSimulating(true);
+          }
+
+          // 폴백 (READY_STATUS)
+          if (eventType === 'READY_STATUS' && data?.ready && isHome) {
+            console.log("🚀 [AUTO] READY_STATUS Fallback Trigger");
+            setTimeout(() => {
+              if (stompClient.current?.connected) {
+                stompClient.current.publish({
                   destination: `/app/match/${matchId}/command`,
                   body: JSON.stringify({
                     matchId: matchId,
-                    senderId: Number(localStorage.getItem('userId') || 0),
+                    senderId: userId,
                     type: 'NORMAL',
-                    inning: matchInfo.inning
+                    inning: matchInfoRef.current.inning || 1
                   }),
                 });
                 setIsSimulating(true);
-              }, 3000);
-            }
-          } else if (eventType === 'AT_BAT' || eventType === 'BUNT' || eventType === 'STEAL' || eventType === 'START_SIMULATION') {
-            setIsSimulating(true);
-            if (eventType === 'START_SIMULATION') setIsSimulating(true);
+              }
+            }, 1000);
           }
+        });
 
-          // ⭐ [추가] 서버 준비 완료 신호 수신 시 첫 플레이 시작
-          if (eventType === 'READY_STATUS' && data?.ready) {
-            console.log("🚀 [DEBUG] Server Ready! Sending first play (NORMAL)...");
-            if (isHome) {
-              client.publish({
-                destination: `/app/match/${matchId}/command`,
-                body: JSON.stringify({
-                  matchId: matchId,
-                  senderId: Number(localStorage.getItem('userId') || 0),
-                  type: 'NORMAL',
-                  inning: matchInfo.inning || 1
-                }),
-              });
-              setIsSimulating(true);
-              setIsSimulating(true);
-            }
-          }
+        // 입장 알림 (서버 GAME_START 트리거)
+        console.log("🚪 [SYSTEM] Triggering /enter...");
+        client.publish({
+          destination: `/app/match/${matchId}/enter`,
+          body: JSON.stringify({
+            matchId: matchId,
+            senderId: userId,
+            type: 'ENTER'
+          })
         });
       },
     });
