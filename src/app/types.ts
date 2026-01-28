@@ -99,27 +99,46 @@ export interface Room {
   created_at: Date;
 }
 
+// export interface MatchInfo {
+//   match_id: string; // FK (ROOM 참조)
+//   status: "READY" | "PLAYING" | "FINISHED";
+//   score: { home: number; away: number }; // JSON
+//   inning: number;
+//   is_top: boolean; // true: 초, false: 말
+//   runners: (Hitter | null)[]; // [1루, 2루, 3루] 선수 객체 또는 null
+//   active_lineup: {
+//     // JSON: 현 필드 10명 + 벤치
+//     batting: (Hitter | null)[];
+//     pitcher: Pitcher | null;
+//     bench: (Hitter | null)[];
+//   };
+//   ball_count: { b: number; s: number; o: number }; // JSON
+//   // 추가 클라이언트용 필드
+//   currentBatter: number; // 타순 인덱스
+//   pitches: number; // 총 투구수
+//   currentPitcher: {
+//     stamina: number;
+//     pitchTypes: string[];
+//   };
+// }
+
 export interface MatchInfo {
-  match_id: string; // FK (ROOM 참조)
+  matchId: string;        // 일관성을 위해 match_id -> matchId (선택사항)
   status: "READY" | "PLAYING" | "FINISHED";
-  score: { home: number; away: number }; // JSON
+  score: { home: number; away: number };
   inning: number;
-  is_top: boolean; // true: 초, false: 말
-  runners: (Hitter | null)[]; // [1루, 2루, 3루] 선수 객체 또는 null
-  active_lineup: {
-    // JSON: 현 필드 10명 + 벤치
-    batting: (Hitter | null)[];
-    pitcher: Pitcher | null;
-    bench: (Hitter | null)[];
-  };
-  ball_count: { b: number; s: number; o: number }; // JSON
-  // 추가 클라이언트용 필드
-  currentBatter: number; // 타순 인덱스
-  pitches: number; // 총 투구수
-  currentPitcher: {
-    stamina: number;
-    pitchTypes: string[];
-  };
+  isTop: boolean;         // is_top -> isTop (선택사항)
+  ballCount: { b: number; s: number; o: number };
+
+  // --- 실시간 필드 상황 (ID 위주) ---
+  runnerIds: (number | null)[];      // [1루, 2루, 3루] 주자 ID만 보관
+  currentBatterIndex: number;        // 현재 타순 인덱스 (0~8)
+  currentPitcherId: number;          // 현재 투수 ID
+
+  // --- [강력 추천 추가] 실시간 수비 위치 ---
+  // 수비 교체 시 "누가 어디에 있는지" 서버에서 준 최신 정보를 담습니다.
+  // { "C": 102, "1B": 103, "SS": 105 ... }
+  fieldPositions: Record<string, number>;
 }
 
 export interface MatchRecord {
