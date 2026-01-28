@@ -158,6 +158,11 @@ export function LineupBuilder({
             }
           }
         });
+
+        client.publish({
+          destination: `/app/match/${matchId}/setup`,
+          body: JSON.stringify({ type: 'ENTER', senderId: userId, matchId })
+        });
       },
     });
 

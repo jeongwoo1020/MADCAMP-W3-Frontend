@@ -67,6 +67,16 @@ export function VSPage({ myLineup, opponentLineup, matchId, userId, onGameReady,
                     }
                 });
 
+                // 입장 알림 (관리용)
+                client.publish({
+                    destination: `/app/match/${matchId}/setup`,
+                    body: JSON.stringify({
+                        type: 'ENTER',
+                        senderId: userId,
+                        matchId: matchId
+                    })
+                });
+
                 // CHECK_READY 전송
                 client.publish({
                     destination: `/app/match/${matchId}/setup`,
