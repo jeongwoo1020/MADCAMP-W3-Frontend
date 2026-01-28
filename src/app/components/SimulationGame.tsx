@@ -1,6 +1,6 @@
 // ⭐ final verseion 
 import { useState, useEffect, useRef } from 'react';
-import { Lineup, MatchInfo, Hitter, Pitcher, Stadium, MatchRecord } from '@/app/types';
+import { Lineup, MatchInfo, Hitter, Pitcher, Stadium } from '@/app/types';
 import { Card } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { Badge } from '@/app/components/ui/badge';
@@ -29,7 +29,7 @@ interface SimulationGameProps {
   opponentLineup: Lineup;
   isHome: boolean;
   matchId: string; // ⭐ 추가
-  onGameEnd: (finalScore: { home: number; away: number }, history: MatchRecord[]) => void;
+  onGameEnd: (score: { home: number; away: number }) => void;
 }
 
 
@@ -313,8 +313,11 @@ export function SimulationGame({
   const opponentCurrentLineup = isHome ? awayLineup : homeLineup;
 
 
-  // 게임 종료 체크
-  const isGameOver = matchInfo.status === 'FINISHED' || matchInfo.inning > 9;
+  // 게임 종료 체크 (서버 필드 + 메시지 텍스트 보완)
+  const isGameOver =
+    matchInfo.status === 'FINISHED' ||
+    matchInfo.inning > 9 ||
+    (gameLog[0]?.includes("경기 종료") ?? false);
 
   // 2. 소켓 연결 및 리스너 등록
   useEffect(() => {
@@ -426,7 +429,9 @@ export function SimulationGame({
   // 3. 게임 종료 자동 처리
   useEffect(() => {
     if (isGameOver) {
-      onGameEnd(matchInfo.score, []);
+      setTimeout(() => {
+        onGameEnd(matchInfo.score);
+      }, 2000); // 2초 대기 후 결과창 이동
     }
   }, [isGameOver, matchInfo.score, onGameEnd]);
 
