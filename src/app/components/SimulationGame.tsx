@@ -1,3 +1,4 @@
+// ⭐ final verseion 
 import { useState, useEffect, useRef } from 'react';
 import { Lineup, MatchInfo, Hitter, Pitcher, Stadium, MatchRecord } from '@/app/types';
 import { Card } from '@/app/components/ui/card';
