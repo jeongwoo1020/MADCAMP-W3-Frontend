@@ -1,18 +1,24 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Lineup } from "@/app/types";
 import { TEAM_THEMES, getFullTeamName } from "@/app/data/teamThemes";
-import { Card } from "@/app/components/ui/card";
 import { Badge } from "@/app/components/ui/badge";
-import { Separator } from "@/app/components/ui/separator";
-import { Users, Coins, Trophy } from "lucide-react";
+import { Coins, Trophy } from "lucide-react";
+import { Client } from "@stomp/stompjs";
+import SockJS from "sockjs-client";
 
 interface VSPageProps {
     myLineup: Lineup;
     opponentLineup: Lineup;
+    matchId: string;
+    userId: number;
+    onGameReady: (isHome: boolean) => void;
     onComplete: () => void;
 }
 
-export function VSPage({ myLineup, opponentLineup, onComplete }: VSPageProps) {
+export function VSPage({ myLineup, opponentLineup, matchId, userId, onGameReady, onComplete }: VSPageProps) {
+    const stompClient = useRef<Client | null>(null);
+    const [isSettingsReceived, setIsSettingsReceived] = useState(false);
+    const [isTimerFinished, setIsTimerFinished] = useState(false);
     const myTeam = getFullTeamName(myLineup.batting[0]?.team || "내 팀");
     const opponentTeam = getFullTeamName(opponentLineup?.batting[0]?.team || "상대 팀");
     const myTheme = TEAM_THEMES[myTeam];
@@ -39,12 +45,63 @@ export function VSPage({ myLineup, opponentLineup, onComplete }: VSPageProps) {
     const myCredits = calculateLineupCredits(myLineup);
     const opponentCredits = calculateLineupCredits(opponentLineup);
 
+    // 1. 소켓 연결 및 CHECK_READY 전송
+    useEffect(() => {
+        const socket = new SockJS('http://localhost:8080/ws-baseball');
+        const client = new Client({
+            webSocketFactory: () => socket,
+            reconnectDelay: 5000,
+            onConnect: () => {
+                console.log(`✅ [VS] matchId(${matchId}) 연결 성공!`);
+
+                // 구독
+                client.subscribe(`/topic/match/${matchId}`, (message) => {
+                    const response = JSON.parse(message.body);
+                    console.log("📨 [VS] 받은 메시지:", response);
+
+                    if (response.eventType === 'READY_STATUS' && response.data.ready) {
+                        const isHome = Number(response.data.home_team_id) === userId;
+                        console.log(`⭐ [VS] 경기 준비 완료! 홈 여부: ${isHome}`);
+                        onGameReady(isHome);
+                        setIsSettingsReceived(true);
+                    }
+                });
+
+                // CHECK_READY 전송
+                client.publish({
+                    destination: `/app/match/${matchId}/setup`,
+                    body: JSON.stringify({
+                        type: 'CHECK_READY',
+                        senderId: userId,
+                        matchId: matchId
+                    })
+                });
+                console.log("🚀 [VS] CHECK_READY 전송 완료");
+            },
+        });
+
+        client.activate();
+        stompClient.current = client;
+
+        return () => {
+            client.deactivate();
+        };
+    }, [matchId, userId, onGameReady]);
+
     useEffect(() => {
         const timer = setTimeout(() => {
-            onComplete();
+            setIsTimerFinished(true);
         }, 5000);
         return () => clearTimeout(timer);
-    }, [onComplete]);
+    }, []);
+
+    // 3. 타이머 종료와 설정 수신이 모두 완료되면 넘어가기
+    useEffect(() => {
+        if (isSettingsReceived && isTimerFinished) {
+            console.log("🚀 [VS] 모든 준비 완료! 게임 시작!");
+            onComplete();
+        }
+    }, [isSettingsReceived, isTimerFinished, onComplete]);
 
     return (
         <div
@@ -134,7 +191,7 @@ export function VSPage({ myLineup, opponentLineup, onComplete }: VSPageProps) {
                         </div>
                     </div>
                     <div className="mt-10 text-white/50 text-sm font-mono animate-pulse">
-                        Loading Stadium Resources...
+                        {!isSettingsReceived ? "Waiting for Game Settings..." : "Loading Stadium Resources..."}
                     </div>
                 </div>
 
