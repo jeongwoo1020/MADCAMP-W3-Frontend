@@ -8,7 +8,7 @@ import {
 } from "react-router-dom";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
-import { Lineup, MatchRecord } from "@/app/types";
+import { Lineup, Stadium } from "@/app/types";
 import { LoginScreen } from "@/app/components/LoginScreen";
 import { GameLobby } from "@/app/components/GameLobby";
 import { LineupBuilder } from "@/app/components/LineupBuilder";
@@ -37,9 +37,6 @@ function AppRoutes() {
     home: number;
     away: number;
   } | null>(null);
-  const [gameHistory, setGameHistory] = useState<MatchRecord[]>(
-    [],
-  );
 
   // 상대방 라인업 자동 생성 (랜덤 매칭/AI용)
   const generateOpponentLineup = (): Lineup => {
@@ -182,6 +179,7 @@ function AppRoutes() {
   };
 
   const handleGameStart = (
+    _stadium: Stadium,
     selectedIsHome: boolean,
   ) => {
     setIsHome(selectedIsHome);
@@ -194,20 +192,16 @@ function AppRoutes() {
 
   const handleGameEnd = (
     score: { home: number; away: number },
-    history: MatchRecord[],
   ) => {
     setFinalScore(score);
-    setGameHistory(history);
     navigate("/result");
   };
-
   const handleNewGame = () => {
     setGameMode(null);
     setMyLineup(null);
     setOpponentLineup(null);
     setIsHome(true);
     setFinalScore(null);
-    setGameHistory([]);
     navigate("/lobby");
   };
 
@@ -272,7 +266,7 @@ function AppRoutes() {
                 myLineup={myLineup}
                 opponentLineup={opponentLineup}
                 matchId={matchId}
-                onGameStart={(isHome) => handleGameStart(isHome)}
+                onGameStart={(stadium, isHome) => handleGameStart(stadium, isHome)}
               />
             ) : (
               <Navigate to="/lobby" replace />
@@ -324,7 +318,7 @@ function AppRoutes() {
                 opponentLineup={opponentLineup}
                 finalScore={finalScore}
                 isHome={isHome}
-                gameHistory={gameHistory}
+                matchId={matchId} // ⭐ matchId 추가
                 onNewGame={handleNewGame}
               />
             ) : (
