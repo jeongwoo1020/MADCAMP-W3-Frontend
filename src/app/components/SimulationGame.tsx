@@ -315,8 +315,6 @@ export function SimulationGame({
   const [selectedRunnerBase, setSelectedRunnerBase] = useState<0 | 1 | 2 | null>(null);
   const [isAggressive, setIsAggressive] = useState(false);
 
-  const myCurrentLineup = isHome ? homeLineup : awayLineup;
-  const opponentCurrentLineup = isHome ? awayLineup : homeLineup;
 
 
   // 게임 종료 체크 (서버 필드 + 메시지 텍스트 보완)
@@ -511,8 +509,12 @@ export function SimulationGame({
   const currentRunners = matchInfo.runnerIds.map(id => getPlayerById(id) as Hitter);
 
   // 현재 팀 정보 (API 데이터 기준)
-  const myTeam = getFullTeamName(myCurrentLineup?.batting[0]?.team || '우리팀');
-  const opponentTeam = getFullTeamName(opponentCurrentLineup?.batting[0]?.team || '상대팀');
+  // 현재 팀 정보 (API 데이터 기준)
+  const myCurrentLineup = isHome ? homeLineup : awayLineup;
+  const opponentCurrentLineup = isHome ? awayLineup : homeLineup;
+
+  const myTeam = getFullTeamName(myCurrentLineup?.batting[0]?.team || '내 팀');
+  const opponentTeam = getFullTeamName(opponentCurrentLineup?.batting[0]?.team || '상대 팀');
 
 
 

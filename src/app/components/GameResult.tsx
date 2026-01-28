@@ -43,8 +43,8 @@ export function GameResult({
         ]);
         setSummary(summaryRes.data);
         setStats(statsRes.data);
-        // 명세서 상 객체 내 배열이므로 .highlights 참조
-        setBackendHighlights(highlightsRes.data.highlights || []);
+        // 하이라이트 API가 배열을 직접 반환하므로 바로 할당
+        setBackendHighlights(Array.isArray(highlightsRes.data) ? highlightsRes.data : highlightsRes.data.highlights || []);
       } catch (e) {
         console.error("Failed to fetch result data:", e);
       } finally {
@@ -54,8 +54,8 @@ export function GameResult({
     fetchData();
   }, [matchId]);
 
-  const myTeam = myLineup.batting[0]?.team || '내 팀';
-  const opponentTeam = opponentLineup.batting[0]?.team || '상대 팀';
+  const myTeam = getFullTeamName(myLineup.batting[0]?.team || '내 팀');
+  const opponentTeam = getFullTeamName(opponentLineup.batting[0]?.team || '상대 팀');
   const myTheme = TEAM_THEMES[myTeam];
   const opponentTheme = TEAM_THEMES[opponentTeam];
 
@@ -163,19 +163,19 @@ export function GameResult({
 
         {/* 상세 정보 탭 */}
         <Card className="p-6">
-          <Tabs defaultValue="highlights">
+          <Tabs defaultValue="stats">
             <TabsList className="grid w-full grid-cols-2 bg-white border border-gray-200 p-1 h-12">
-              <TabsTrigger
-                value="highlights"
-                className="text-black data-[state=active]:bg-gray-100 data-[state=active]:shadow-none font-bold"
-              >
-                하이라이트
-              </TabsTrigger>
               <TabsTrigger
                 value="stats"
                 className="text-black data-[state=active]:bg-gray-100 data-[state=active]:shadow-none font-bold"
               >
                 상세 통계
+              </TabsTrigger>
+              <TabsTrigger
+                value="highlights"
+                className="text-black data-[state=active]:bg-gray-100 data-[state=active]:shadow-none font-bold"
+              >
+                하이라이트
               </TabsTrigger>
             </TabsList>
 
@@ -186,18 +186,28 @@ export function GameResult({
                 <h3 className="font-bold text-lg mb-4">경기 하이라이트</h3>
                 {backendHighlights.length > 0 ? (
                   backendHighlights.map((highlight: any, idx: number) => (
-                    <Card key={idx} className="p-4">
-                      <div className="flex items-start gap-3">
-                        <Badge
-                          variant={highlight.event === 'HOMERUN' ? 'default' : 'secondary'}
-                        >
-                          {highlight.inning}회
-                        </Badge>
+                    <Card key={idx} className="p-4 border-l-4" style={{
+                      borderLeftColor: highlight.event === 'HOMERUN' ? '#CE0E2D' : (highlight.event === 'HIT' ? '#3B82F6' : '#E5E7EB')
+                    }}>
+                      <div className="flex items-start gap-4">
+                        <div className="flex flex-col items-center">
+                          <Badge variant="outline" className="mb-1">{highlight.inning}회</Badge>
+                          {highlight.data?.score_change > 0 && (
+                            <Badge className="bg-red-500 hover:bg-red-600">+{highlight.data.score_change}</Badge>
+                          )}
+                        </div>
                         <div className="flex-1">
-                          <div className="font-semibold mb-1">{highlight.description}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {highlight.event}
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-bold text-lg">{highlight.description}</span>
+                            <Badge
+                              className={highlight.event === 'HOMERUN' ? 'bg-red-600' : 'bg-blue-600'}
+                            >
+                              {highlight.event === 'HOMERUN' ? '홈런' : '안타'}
+                            </Badge>
                           </div>
+                          {highlight.data?.detail && highlight.data.detail !== highlight.description && (
+                            <div className="text-sm text-muted-foreground">{highlight.data.detail}</div>
+                          )}
                         </div>
                       </div>
                     </Card>
@@ -213,44 +223,6 @@ export function GameResult({
             {/* 상세 통계 */}
             <TabsContent value="stats">
               <div className="space-y-4">
-                <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5" />
-                  이닝별 득점
-                </h3>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left p-2">팀</th>
-                        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((inning) => (
-                          <th key={inning} className="text-center p-2">
-                            {inning}
-                          </th>
-                        ))}
-                        <th className="text-center p-2 font-bold">R</th>
-                        <th className="text-center p-2">H</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr className="border-b">
-                        <td className="p-2 font-semibold">{isHome ? opponentTeam : myTeam}</td>
-                        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((inning) => (
-                          <td key={inning} className="text-center p-2">-</td>
-                        ))}
-                        <td className="text-center p-2 font-bold">{opponentScore}</td>
-                        <td className="text-center p-2">{opponentHits}</td>
-                      </tr>
-                      <tr>
-                        <td className="p-2 font-semibold">{isHome ? myTeam : opponentTeam}</td>
-                        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((inning) => (
-                          <td key={inning} className="text-center p-2">-</td>
-                        ))}
-                        <td className="text-center p-2 font-bold">{myScore}</td>
-                        <td className="text-center p-2">{myHits}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
 
                 <Separator className="my-6" />
 
@@ -409,34 +381,6 @@ export function GameResult({
                 </div>
 
                 <Separator className="my-6" />
-
-                {/* <div>
-                  <h4 className="font-bold mb-3">전체 상세 기록</h4>
-                  <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
-                    {backendHighlights.length > 0 ? (
-                      backendHighlights.map((event: any, idx: number) => (
-                        <div
-                          key={idx}
-                          className="text-sm p-3 hover:bg-gray-50 rounded-lg border border-gray-100 flex items-start gap-4 transition-colors"
-                        >
-                          <Badge variant={event.event === 'HOMERUN' ? 'default' : 'outline'} className="flex-shrink-0 mt-0.5">
-                            {event.inning}회 {event.is_top ? '초' : '말'}
-                          </Badge>
-                          <div className="flex-1">
-                            <div className="font-semibold text-slate-800">{event.description}</div>
-                            {event.data?.detail && event.data.detail !== event.description && (
-                              <div className="text-xs text-muted-foreground mt-1">{event.data.detail}</div>
-                            )}
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="text-center text-muted-foreground py-8 text-sm italic">
-                        기록된 상세 이벤트가 없습니다
-                      </div>
-                    )}
-                  </div>
-                </div> */}
               </div>
             </TabsContent>
           </Tabs>
