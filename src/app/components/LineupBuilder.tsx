@@ -19,7 +19,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/app/components/ui/accordion";
-import { Coins, Users } from "lucide-react";
+import { Coins, Users, Loader2 } from "lucide-react";
 
 import { DraggablePlayer } from "./lineup/DraggablePlayer";
 import { LineupSlot } from "./lineup/LineupSlot";
@@ -27,16 +27,27 @@ import { PitcherSlot } from "./lineup/PitcherSlot";
 import { BenchSlot } from "./lineup/BenchSlot";
 
 import { fetchAndAdaptPlayers } from "@/app/lib/playerAdapter";
+import { Client } from "@stomp/stompjs";
+import SockJS from "sockjs-client";
+import { api } from "../lib/api";
+import { useRef } from "react";
 
 const MAX_CREDITS = 200; // 최대 크레딧 (백엔드 밸런싱 기준)
 
 interface LineupBuilderProps {
+  matchId: string;
+  userId: number;
   onLineupComplete: (lineup: Lineup) => void;
 }
 
 export function LineupBuilder({
+  matchId,
+  userId,
   onLineupComplete,
 }: LineupBuilderProps) {
+  const stompClient = useRef<Client | null>(null);
+  const [isBothConfirmed, setIsBothConfirmed] = useState(false);
+  const [waitingMessage, setWaitingMessage] = useState("");
   const [lineup, setLineup] = useState<Lineup>({
     batting: Array(9).fill(null),
     pitchers: {
@@ -125,6 +136,45 @@ export function LineupBuilder({
 
     loadPlayers();
   }, []);
+
+  // 2. 소켓 연결 및 리스너 등록
+  useEffect(() => {
+    const socket = new SockJS('http://localhost:8080/ws-baseball');
+    const client = new Client({
+      webSocketFactory: () => socket,
+      reconnectDelay: 5000,
+      onConnect: () => {
+        console.log(`✅ [Lineup] matchId(${matchId}) 연결 성공!`);
+        client.subscribe(`/topic/match/${matchId}`, (message) => {
+          const response = JSON.parse(message.body);
+          console.log("📨 [Lineup] 받은 메시지:", response);
+
+          if (response.eventType === 'LINEUP_STATUS') {
+            if (response.data.both_confirmed) {
+              console.log("⭐ [Lineup] 양쪽 모두 확정 완료! VS 화면으로 이동합니다.");
+              setIsBothConfirmed(true);
+            } else {
+              setWaitingMessage(response.description || "상대방의 라인업 확정을 기다리고 있습니다...");
+            }
+          }
+        });
+      },
+    });
+
+    client.activate();
+    stompClient.current = client;
+
+    return () => {
+      client.deactivate();
+    };
+  }, [matchId]);
+
+  // both_confirmed가 true가 되면 App.tsx로 라인업 전달 (App.tsx에서 /vs로 이동시킴)
+  useEffect(() => {
+    if (isBothConfirmed) {
+      onLineupComplete(lineup);
+    }
+  }, [isBothConfirmed]);
 
   const TEAMS = Array.from(
     new Set([
@@ -502,14 +552,67 @@ export function LineupBuilder({
 
     setIsSubmitting(true);
     try {
-      // 백엔드 DTO 매핑 로직 강화 가능 (필요시)
-      await onLineupComplete(lineup);
+      // 1. 백엔드 API에 라인업 저장 (App.tsx에서 넘겨준 props로 저장하거나 여기서 직접 할 수도 있지만, 
+      // 현재는 App.tsx의 handleMyLineupComplete가 api.post를 호출하고 있음.
+      // 하지만 동기화를 위해 여기서 확정 메시지를 보내야 함)
+
+      // 우선 App.tsx의 post logic을 그대로 태워야 하므로, 
+      // 이 로직은 onLineupComplete가 호출될 때 실행되도록 되어 있음.
+      // 그러나 onLineupComplete는 both_confirmed일 때만 호출되게 바꿨으므로,
+      // 개별 저장은 여기서 먼저 해야 함.
+
+      // App.tsx의 handleMyLineupComplete의 저장 로직을 참고하여 여기서 먼저 POST
+      const startersMap: Record<string, number> = {};
+      if (lineup.pitchers.starter) {
+        startersMap["P"] = lineup.pitchers.starter.id;
+      }
+      lineup.batting.forEach((player, idx) => {
+        const pos = lineup.fieldPositions[idx];
+        if (player && pos) {
+          startersMap[pos] = player.id;
+        }
+      });
+      const userBench = lineup.bench.map(p => p ? p.id : 0).filter(id => id !== 0);
+      const userBullpen = [
+        ...(lineup.pitchers.middle.map(p => p ? p.id : 0)),
+        lineup.pitchers.closer ? lineup.pitchers.closer.id : 0
+      ].filter(id => id !== 0);
+
+      const payload = {
+        match_id: matchId,
+        user_id: userId,
+        active_lineup: {
+          starters: startersMap,
+          batting_order: lineup.batting.map(p => p ? p.id : 0).filter(id => id !== 0),
+          bench: userBench.length >= 5 ? userBench.slice(0, 5) : [...userBench, 101, 102, 103, 104, 105].slice(0, 5),
+          bullpen: userBullpen,
+          has_dh: lineup.hasDH
+        }
+      };
+
+      await api.post('/team/lineup', payload);
+      console.log("✅ [Lineup] 라인업 저장 성공");
+
+      // 2. 소켓으로 확정 메시지 전송
+      if (stompClient.current?.connected) {
+        stompClient.current.publish({
+          destination: `/app/match/${matchId}/setup`,
+          body: JSON.stringify({
+            type: 'LINEUP_CONFIRM',
+            senderId: userId,
+            matchId: matchId
+          })
+        });
+        console.log("🚀 [Lineup] 확정 메시지 전송 완료");
+        setWaitingMessage("내 라인업이 확정되었습니다. 상대방을 기다리는 중...");
+      }
     } catch (error) {
       console.error("Submission error:", error);
       alert("라인업 저장 중 오류가 발생했습니다.");
-    } finally {
       setIsSubmitting(false);
     }
+    // setIsSubmitting은 true로 유지하여 "Waiting..." UI를 보여줌. 
+    // both_confirmed를 받으면 렌더링이 전환되거나 onLineupComplete가 호출됨.
   };
 
   const handleClear = () => {
@@ -1000,6 +1103,32 @@ export function LineupBuilder({
           </div>
         </div>
       </div>
+
+      {/* 상대방 대기 오버레이 */}
+      {(isSubmitting && !isBothConfirmed) && (
+        <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-slate-900 border border-white/20 p-8 rounded-3xl shadow-2xl flex flex-col items-center gap-6 max-w-md w-full mx-4">
+            <div className="relative">
+              <div className="w-20 h-20 border-4 border-sonic-red/20 rounded-full animate-pulse" />
+              <Loader2 className="w-10 h-10 text-sonic-red animate-spin absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+            </div>
+            <div className="text-center">
+              <h3 className="text-2xl font-black text-white mb-2">라인업 확정 완료</h3>
+              <p className="text-gray-400 font-bold">{waitingMessage || "상대방의 라인업 확정을 기다리고 있습니다..."}</p>
+            </div>
+            <div className="w-full bg-white/5 rounded-full h-1.5 overflow-hidden mt-2">
+              <div className="bg-sonic-red h-full w-1/2 animate-[progress_2s_ease-in-out_infinite]" />
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes progress {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(200%); }
+        }
+      `}</style>
     </div>
   );
 }

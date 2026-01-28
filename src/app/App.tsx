@@ -8,7 +8,7 @@ import {
 } from "react-router-dom";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
-import { Lineup, Stadium, MatchRecord } from "@/app/types";
+import { Lineup, MatchRecord } from "@/app/types";
 import { LoginScreen } from "@/app/components/LoginScreen";
 import { GameLobby } from "@/app/components/GameLobby";
 import { LineupBuilder } from "@/app/components/LineupBuilder";
@@ -32,7 +32,6 @@ function AppRoutes() {
   const [myLineup, setMyLineup] = useState<Lineup | null>(null);
   const [opponentLineup, setOpponentLineup] =
     useState<Lineup | null>(null);
-  const [stadium, setStadium] = useState<Stadium | null>(null);
   const [isHome, setIsHome] = useState(true);
   const [finalScore, setFinalScore] = useState<{
     home: number;
@@ -122,52 +121,6 @@ function AppRoutes() {
   const handleMyLineupComplete = async (lineup: Lineup) => {
     setMyLineup(lineup);
 
-    // ⭐ 백엔드에 라인업 저장
-    if (matchId && user) {
-      try {
-        // 수비 포지션 매핑 (starters Map 구성)
-        const startersMap: Record<string, number> = {};
-        if (lineup.pitchers.starter) {
-          startersMap["P"] = lineup.pitchers.starter.id;
-        }
-
-        lineup.batting.forEach((player, idx) => {
-          const pos = lineup.fieldPositions[idx];
-          if (player && pos) {
-            startersMap[pos] = player.id;
-          }
-        });
-
-        const userBench = lineup.bench.map(p => p ? p.id : 0).filter(id => id !== 0);
-        const userBullpen = [
-          ...(lineup.pitchers.middle.map(p => p ? p.id : 0)),
-          lineup.pitchers.closer ? lineup.pitchers.closer.id : 0
-        ].filter(id => id !== 0);
-
-        // 백엔드 SaveLineupRequest DTO 형식에 맞춤
-        const payload = {
-          match_id: matchId,
-          user_id: user.id,
-          active_lineup: {
-            starters: startersMap,
-            batting_order: lineup.batting.map(p => p ? p.id : 0).filter(id => id !== 0),
-            // 벤치 멤버 5명 필수 체크 및 부족 시 더미 데이터 추가
-            bench: userBench.length >= 5
-              ? userBench.slice(0, 5)
-              : [...userBench, 101, 102, 103, 104, 105].slice(0, 5),
-            bullpen: userBullpen,
-            has_dh: lineup.hasDH
-          }
-        };
-
-        console.log("🚀 [DEBUG] Sending User Lineup:", payload);
-        await api.post('/team/lineup', payload);
-        console.log("✅ [DEBUG] User Lineup saved successfully!");
-      } catch (e) {
-        console.error("❌ [DEBUG] Failed to save lineup:", e);
-      }
-    }
-
     if (gameMode === "random") {
       // 1. 가짜 AI 라인업 생성 및 상태 저장
       const opponent = generateOpponentLineup();
@@ -208,7 +161,7 @@ function AppRoutes() {
       } catch (e) {
         console.error("❌ [DEBUG] AI 라인업 등록 실패:", e);
       }
-      navigate("/setup");
+      navigate("/vs"); // ⭐ /setup 대신 /vs로 바로 이동
     } else {
       // 친구 모드 등 기존 로직 유지
       setTimeout(() => {
@@ -216,16 +169,21 @@ function AppRoutes() {
           const opponent = generateOpponentLineup();
           setOpponentLineup(opponent);
         }
-        navigate("/setup");
+        navigate("/vs"); // ⭐ /setup 대신 /vs로 바로 이동
       }, 500);
     }
   };
 
-  const handleGameStart = (
-    selectedStadium: Stadium,
+  const handleGameReady = (
     selectedIsHome: boolean,
   ) => {
-    setStadium(selectedStadium);
+    setIsHome(selectedIsHome);
+    // VS 페이지에서 호출될 것이며, 이후 VS 페이지의 타이머가 종료되면 onComplete가 호출되어 /game으로 이동함
+  };
+
+  const handleGameStart = (
+    selectedIsHome: boolean,
+  ) => {
     setIsHome(selectedIsHome);
     navigate("/vs");
   };
@@ -247,7 +205,6 @@ function AppRoutes() {
     setGameMode(null);
     setMyLineup(null);
     setOpponentLineup(null);
-    setStadium(null);
     setIsHome(true);
     setFinalScore(null);
     setGameHistory([]);
@@ -295,8 +252,10 @@ function AppRoutes() {
         <Route
           path="/lineup"
           element={
-            user && gameMode ? (
+            user && gameMode && matchId ? (
               <LineupBuilder
+                matchId={matchId}
+                userId={user.id}
                 onLineupComplete={handleMyLineupComplete}
               />
             ) : (
@@ -313,7 +272,7 @@ function AppRoutes() {
                 myLineup={myLineup}
                 opponentLineup={opponentLineup}
                 matchId={matchId}
-                onGameStart={handleGameStart}
+                onGameStart={(isHome) => handleGameStart(isHome)}
               />
             ) : (
               <Navigate to="/lobby" replace />
@@ -324,10 +283,13 @@ function AppRoutes() {
         <Route
           path="/vs"
           element={
-            user && myLineup && opponentLineup ? (
+            user && myLineup && opponentLineup && matchId ? (
               <VSPage
                 myLineup={myLineup}
                 opponentLineup={opponentLineup}
+                matchId={matchId}
+                userId={user.id}
+                onGameReady={handleGameReady}
                 onComplete={handleVsComplete}
               />
             ) : (
@@ -339,13 +301,12 @@ function AppRoutes() {
         <Route
           path="/game"
           element={
-            user && myLineup && opponentLineup && stadium ? (
+            user && myLineup && opponentLineup ? (
               <SimulationGame
                 myLineup={myLineup}
                 opponentLineup={opponentLineup}
-                stadium={stadium}
                 isHome={isHome}
-                matchId={matchId || ""} // ⭐ 추가
+                matchId={matchId || ""}
                 onGameEnd={handleGameEnd}
               />
             ) : (

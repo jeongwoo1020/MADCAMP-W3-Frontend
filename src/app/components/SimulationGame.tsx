@@ -26,7 +26,6 @@ import { api } from '../lib/api';
 interface SimulationGameProps {
   myLineup: Lineup;
   opponentLineup: Lineup;
-  stadium: Stadium;
   isHome: boolean;
   matchId: string; // ⭐ 추가
   onGameEnd: (finalScore: { home: number; away: number }, history: MatchRecord[]) => void;
@@ -128,7 +127,6 @@ const SimulationPlayerCard = ({
 export function SimulationGame({
   myLineup,
   opponentLineup,
-  stadium,
   isHome,
   matchId, // ⭐ Props에서 받음
   onGameEnd,
