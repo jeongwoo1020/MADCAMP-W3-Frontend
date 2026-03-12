@@ -15,11 +15,14 @@
 - **WebSocket(StompJS)** 기반의 실시간 데이터 중계
 - 매 투구(Pitch)와 타석(At-bat) 결과의 정교한 시뮬레이션 및 데이터 시각화
 - 상황별 중계 텍스트 제공
+<img width="1410" height="827" alt="simulation" src="https://github.com/user-attachments/assets/e7e8f32f-27e4-448b-8ea9-3fc63d0f1d91" />
+
 
 ### 2. 전략적 라인업 빌더 (Lineup Builder)
 - **Drag & Drop** 인터페이스를 통한 간편한 선수 배치
 - **Credit System**: 제한된 예산 내에서 최적의 선수 조합을 찾는 밸런싱 재미
 - 타순 및 수비 위치(선발/벤치/불펜) 커스텀 설정
+<img width="1361" height="881" alt="lineupBuilder" src="https://github.com/user-attachments/assets/63c685a0-91e3-44de-8cec-740d0cd61ecf" />
 
 ### 3. 감독 전술 지시 (Tactical Management)
 - 경기 상황에 따른 실시간 커맨드: **번트, 도루, 고의 사구** 등
